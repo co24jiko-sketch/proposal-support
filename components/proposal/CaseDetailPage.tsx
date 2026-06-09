@@ -46,6 +46,7 @@ import {
 
 import { cn } from "@/lib/utils";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 
 import { Button } from "@/components/ui/button";
@@ -160,7 +161,12 @@ export function CaseDetailPage({ caseItem }: { caseItem: ProposalCase }) {
 
       </div>
 
-
+      {caseItem.status === "returned" && caseItem.returnReason && (
+        <Alert variant="destructive">
+          <AlertTitle>差し戻し</AlertTitle>
+          <AlertDescription>{caseItem.returnReason}</AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
 

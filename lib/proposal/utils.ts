@@ -7,6 +7,10 @@ import type {
   WorkflowStepId,
 } from "@/lib/proposal/types";
 
+export function isDbCase(id: string): boolean {
+  return !id.startsWith("case-");
+}
+
 export const WORKFLOW_STEPS: WorkflowStepId[] = [
   "basic_input",
   "checklist",

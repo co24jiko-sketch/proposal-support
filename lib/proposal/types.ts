@@ -93,6 +93,7 @@ export interface ProposalCase {
   managerApproval: ApprovalRecord | null;
   directorApproval: ApprovalRecord | null;
   approvalRequestReason?: string;
+  returnReason?: string;
   versions: CaseVersion[];
   auditLog: AuditLogEntry[];
   referencedLibraryIds: string[];

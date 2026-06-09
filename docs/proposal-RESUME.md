@@ -1,6 +1,6 @@
 # 技術提案書サポート — 次回再開用メモ
 
-最終更新: 2026-06-07
+最終更新: 2026-06-09（承認フローの DB 保存を実装）
 
 ## クイックスタート
 
@@ -100,7 +100,7 @@ npx --yes surge <一時フォルダ> --domain diagram-proposal-tool-concept.surg
 | 2 | Supabase 準備・テーブル作成・`.env.local` | ✅ 完了 |
 | 3 | 登録画面で保存＋一覧表示＋リロードで残る | ✅ 完了（API＋ブラウザ確認済み） |
 | 4 | （Step 3 と同時）表示と永続化の確認 | ✅ 完了（ブラウザ確認済み） |
-| 5 | Vercel に公開 | 未着手 |
+| 5 | Vercel に公開 | ✅ 完了（2026-06-07 案件一覧表示確認済み） |
 
 ### Supabase（本番ではない dev 用）
 
@@ -115,35 +115,99 @@ npx --yes surge <一時フォルダ> --domain diagram-proposal-tool-concept.surg
 ### Step 2〜3 で追加したファイル
 
 - `lib/supabase/client.ts` / `server.ts` / `types.ts`
-- `lib/proposal/case-repository.ts` — DB 読み書き
+- `lib/proposal/case-repository.ts` — DB 読み書き（`confirmChecklist` 追加）
 - `lib/proposal/map-case-row.ts` — DB行 → ProposalCase 変換
 - `app/api/proposal/cases/route.ts` — GET一覧 / POST作成
+- `app/api/proposal/cases/[id]/confirm-checklist/route.ts` — チェックリスト確定
 - `components/proposal/NewCaseWizard.tsx` — フォーム入力→API保存
 - `components/proposal/CaseListPage.tsx` — API から一覧取得
+- `components/proposal/tabs/ChecklistTab.tsx` — 確定ボタンで API 呼び出し
+
+### チェックリスト確定（2026-06-08 完了）
+
+- Supabase SQL 実行済み（`add_checklist_confirmed.sql`）
+- ブラウザ確認済み: 確定 → 文案タブ遷移 → F5 後も「確定済」が残る
+- DB: `checklist_confirmed = true`, `status = ready_to_generate`
+
+### 承認フロー（2026-06-09 完了）
+
+- Supabase SQL 実行済み（`add_approval_fields.sql`）
+- ブラウザ確認済み: 部長承認 → 支社長承認 → **承認済み** まで到達
+- 承認フロー表示: 部長 高橋 → 支社長 伊藤 が記録される
+- DB: `status = approved`, `manager_*` / `director_*` カラムに値が入る
+
+追加 API:
+
+- `POST /api/proposal/cases/[id]/request-approval` — 承認申請（`editing` → `pending_manager`）
+- `POST /api/proposal/cases/[id]/approve` — 承認（部長/支社長）
+- `POST /api/proposal/cases/[id]/return` — 差戻し
+
+### 公開先（Vercel / GitHub）
+
+| 種別 | URL |
+|---|---|
+| 公開サイト（案件一覧） | https://proposal-support.vercel.app/proposal |
+| Vercel プロジェクト | https://vercel.com （左メニュー → proposal-support） |
+| GitHub リポジトリ | https://github.com/co24jiko-sketch/proposal-support |
+| 環境変数の場所 | Vercel → 左メニュー **Environment Variables**（Settings タブではない） |
+
+※ 環境変数を変更したら必ず **Redeploy** する。
 
 ## 次回やること（優先度順）
 
-1. **Step 5: Vercel 公開**（GitHub push → Vercel → 環境変数設定）
-2. ~~ブラウザでの最終確認~~ ✅ 完了
-4. 以降: チェックリスト確定・承認などの状態遷移を DB に保存
-5. PDF / Word 生成、参照パネル、テスト、図解更新
+教材 Step 1〜5 は完了。以降はツールの「中身」を DB とつなぐフェーズ。
+
+1. ~~**チェックリスト確定**~~ ✅ 完了（SQL 実行・ブラウザ確認済み）
+2. ~~**承認フロー**~~ ✅ 完了（SQL 実行・部長/支社長承認のブラウザ確認済み）
+3. **案件詳細の完全 DB 化** — モック案件（case-1〜3）への依存を減らす ← **次はここ**
+4. PDF / Word 生成（Supabase Storage 等）
+5. 外観の修正（いつでも可）
+6. 図解の更新・再公開
 
 ## 再開手順（自分で始める場合）
+
+### ローカル開発
 
 ```powershell
 cd C:\Users\haram\src\workspace-ui-kit
 npm run dev
 ```
 
-1. http://localhost:3000/proposal が開くか確認
-2. エラーが出たら `.env.local` があるか確認（`.env.local.example` ではない）
-3. 上記 Step 3 の動作確認から再開
+- ローカル: http://localhost:3000/proposal
+- `.env.local` があるか確認（`.env.local.example` ではない）
+
+### 公開サイトの確認
+
+- https://proposal-support.vercel.app/proposal
 
 ## Cursor で再開するときの依頼例（コピペ用）
 
 ```
 C:\Users\haram\src\workspace-ui-kit\docs\proposal-RESUME.md を読んで、
 技術提案書サポートの続きを進めてください。
-Step 3（新規案件の保存・一覧表示・リロード確認）からお願いします。
+教材 Step 1〜5 は完了済みです。
+次は「Supabase SQL 実行 → 承認フローの動作確認」からお願いします。
 npm run dev も起動してください。
 ```
+
+## 作業終了時メモ
+
+### 2026-06-09
+
+- **承認フローの DB 保存** — 申請・承認・差戻しの API と UI 連携を実装
+- Supabase SQL 実行・ブラウザ確認まで完了（テスト地質調査で部長→支社長承認）
+- **次回:** 案件詳細の DB 化、または GitHub push & Vercel redeploy
+
+### 2026-06-08
+
+- **チェックリスト確定の DB 保存** — 実装・Supabase SQL 実行・ブラウザ確認まで完了
+- 追加ファイル: `supabase/add_checklist_confirmed.sql`, `app/api/proposal/cases/[id]/confirm-checklist/route.ts`
+- 変更ファイル: `ChecklistTab.tsx`, `case-repository.ts`, `map-case-row.ts` ほか
+- **次回:** 承認フロー（承認・差戻し）の DB 保存
+- 未 push の変更あり → 次回 GitHub push & Vercel redeploy 推奨
+
+### 2026-06-07
+
+- 教材「画面に記憶を持たせる」は **Step 5 まで完了**
+- Vercel 初回デプロイ時は環境変数に日本語が混ざりエラー → 入れ直し＋ Redeploy で解消
+- Vercel の Settings は左メニューにない。Environment Variables は **左メニュー直下**
