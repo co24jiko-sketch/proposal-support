@@ -33,6 +33,7 @@ export function ComplianceTab({ caseItem }: { caseItem: ProposalCase }) {
   const summary = getComplianceSummary(caseItem);
   const [reason, setReason] = useState(caseItem.approvalRequestReason ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRechecking, setIsRechecking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const hasIssues = summary.partial > 0 || summary.missing > 0;
@@ -40,6 +41,39 @@ export function ComplianceTab({ caseItem }: { caseItem: ProposalCase }) {
   const approvalHref = `/proposal/cases/${caseItem.id}?tab=approval`;
   const draftHref = `/proposal/cases/${caseItem.id}?tab=draft`;
   const canSubmit = !hasIssues || reason.trim().length > 0;
+
+  async function handleRecheck() {
+    setErrorMessage(null);
+    setIsRechecking(true);
+
+    try {
+      if (isDbCase(caseItem.id)) {
+        const response = await fetch(
+          `/api/proposal/cases/${caseItem.id}/run-compliance`,
+          { method: "POST" }
+        );
+
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          throw new Error(
+            body?.error ?? "適合チェック結果の保存に失敗しました"
+          );
+        }
+      }
+
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "適合チェック結果の保存に失敗しました"
+      );
+    } finally {
+      setIsRechecking(false);
+    }
+  }
 
   async function handleRequestApproval() {
     if (!canSubmit) return;
@@ -104,8 +138,13 @@ export function ComplianceTab({ caseItem }: { caseItem: ProposalCase }) {
           ) : (
             <>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  再チェック実行
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isRechecking}
+                  onClick={() => void handleRecheck()}
+                >
+                  {isRechecking ? "実行中..." : "再チェック実行"}
                 </Button>
               </div>
               <ComplianceTable items={caseItem.complianceItems} />

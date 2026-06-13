@@ -1,3 +1,15 @@
+import type {
+  ChecklistItem,
+  ComplianceItem,
+} from "@/lib/proposal/types";
+
+export interface GeneratedSectionsRow {
+  summary: boolean;
+  focusPoints: boolean;
+  detail: boolean;
+  effects: boolean;
+}
+
 export interface ProposalCaseRow {
   id: string;
   project_name: string;
@@ -10,6 +22,12 @@ export interface ProposalCaseRow {
   assignee_name: string;
   status: string;
   checklist_confirmed?: boolean;
+  checklist_items?: ChecklistItem[] | null;
+  compliance_items?: ComplianceItem[] | null;
+  generated_sections?: GeneratedSectionsRow | null;
+  current_word_version?: string | null;
+  word_file_path?: string | null;
+  pdf_file_path?: string | null;
   approval_request_reason?: string | null;
   return_reason?: string | null;
   manager_approved_at?: string | null;

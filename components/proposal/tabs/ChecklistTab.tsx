@@ -26,11 +26,41 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
   const router = useRouter();
   const { llmStopped } = useProposal();
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const confirmed = caseItem.checklistConfirmed;
   const canConfirm = !confirmed;
   const draftHref = `/proposal/cases/${caseItem.id}?tab=draft`;
+
+  async function handleSeedChecklist() {
+    setErrorMessage(null);
+    setIsSeeding(true);
+
+    try {
+      if (isDbCase(caseItem.id)) {
+        const response = await fetch(
+          `/api/proposal/cases/${caseItem.id}/seed-checklist`,
+          { method: "POST" }
+        );
+
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          throw new Error(body?.error ?? "採点項目の追加に失敗しました");
+        }
+      }
+
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "採点項目の追加に失敗しました"
+      );
+    } finally {
+      setIsSeeding(false);
+    }
+  }
 
   async function handleConfirm() {
     setErrorMessage(null);
@@ -133,9 +163,21 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
             </TableBody>
           </Table>
           {caseItem.checklistItems.length === 0 && !confirmed && (
-            <p className="mt-3 text-sm text-muted-foreground">
-              採点項目はまだありません。PDF抽出は未実装のため、そのまま確定して次に進めます。
-            </p>
+            <div className="mt-3 space-y-2">
+              <p className="text-sm text-muted-foreground">
+                採点項目はまだありません。PDF抽出は未実装のため、サンプル項目を追加するか、そのまま確定して次に進めます。
+              </p>
+              {isDbCase(caseItem.id) && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleSeedChecklist}
+                  disabled={isSeeding}
+                >
+                  {isSeeding ? "追加中..." : "サンプル採点項目を追加"}
+                </Button>
+              )}
+            </div>
           )}
         </CardContent>
         <CardFooter className="flex-col items-stretch gap-3 border-t sm:flex-row sm:items-center sm:justify-between">

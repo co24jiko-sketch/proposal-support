@@ -99,6 +99,8 @@ export interface ProposalCase {
   referencedLibraryIds: string[];
   bidDocumentName?: string;
   currentWordVersion?: string;
+  wordFilePath?: string;
+  pdfFilePath?: string;
   generatedSections: {
     summary: boolean;
     focusPoints: boolean;

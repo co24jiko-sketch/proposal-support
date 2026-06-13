@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>技術提案書サポート — 3つの保存場所</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --blue: #2563eb;
+      --green: #059669;
+      --orange: #ea580c;
+      --border: #e2e8f0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      padding: 24px 16px 48px;
+    }
+    .wrap { max-width: 920px; margin: 0 auto; }
+    h1 {
+      font-size: 1.6rem;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      text-align: center;
+      color: var(--muted);
+      margin-bottom: 32px;
+      font-size: 0.95rem;
+    }
+
+    /* 全体の流れ */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 36px;
+    }
+    .flow-box {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 24px;
+      text-align: center;
+      min-width: 280px;
+      font-weight: 600;
+    }
+    .flow-box.user { border-color: #94a3b8; }
+    .flow-box.app {
+      border-color: var(--blue);
+      background: #eff6ff;
+      min-width: 320px;
+    }
+    .arrow {
+      font-size: 1.5rem;
+      color: var(--muted);
+      padding: 6px 0;
+    }
+
+    /* 3つの箱 */
+    .three-boxes {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 36px;
+    }
+    @media (max-width: 720px) {
+      .three-boxes { grid-template-columns: 1fr; }
+    }
+    .box {
+      background: var(--card);
+      border-radius: 14px;
+      border: 2px solid var(--border);
+      overflow: hidden;
+    }
+    .box-header {
+      padding: 14px 16px;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: #fff;
+    }
+    .box.supabase .box-header { background: var(--blue); }
+    .box.github .box-header { background: var(--green); }
+    .box.storage .box-header { background: var(--orange); }
+    .box-body { padding: 16px; }
+    .analogy {
+      background: #f1f5f9;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.88rem;
+      margin-bottom: 12px;
+      color: var(--muted);
+    }
+    .analogy strong { color: var(--text); }
+    .box-body h3 {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+    .box-body ul {
+      padding-left: 1.2em;
+      font-size: 0.92rem;
+    }
+    .box-body li { margin-bottom: 4px; }
+    .status {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .status.now { background: #dcfce7; color: #166534; }
+    .status.future { background: #ffedd5; color: #9a3412; }
+
+    /* 比較表 */
+    .compare {
+      background: var(--card);
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-bottom: 32px;
+    }
+    .compare h2 {
+      padding: 14px 18px;
+      background: #f1f5f9;
+      font-size: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    th { background: #fafafa; width: 22%; color: var(--muted); font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+
+    /* あなたのツール */
+    .tool-flow {
+      background: var(--card);
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      padding: 20px;
+      margin-bottom: 32px;
+    }
+    .tool-flow h2 { font-size: 1rem; margin-bottom: 16px; }
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .step {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      background: var(--blue);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+    .step p { font-size: 0.92rem; }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      margin-right: 4px;
+    }
+    .tag.gh { background: #d1fae5; color: #065f46; }
+    .tag.db { background: #dbeafe; color: #1e40af; }
+    .tag.st { background: #ffedd5; color: #9a3412; }
+
+    .summary {
+      background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+      border: 2px solid #bfdbfe;
+      border-radius: 14px;
+      padding: 20px 24px;
+      text-align: center;
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>技術提案書サポート<br>3つの「保存場所」の図解</h1>
+    <p class="subtitle">Supabase・GitHub・Storage が何か、なぜ分けるのか</p>
+
+    <!-- 全体の流れ -->
+    <div class="flow">
+      <div class="flow-box user">👤 ユーザー（担当者・部長など）</div>
+      <div class="arrow">↓ ブラウザで操作</div>
+      <div class="flow-box app">🌐 Webアプリ（技術提案書サポート）<br><span style="font-weight:400;font-size:0.85rem;color:#64748b">Vercel で公開されている画面</span></div>
+      <div class="arrow">↓ 中身によって保存先が違う</div>
+    </div>
+
+    <!-- 3つの箱 -->
+    <div class="three-boxes">
+      <div class="box supabase">
+        <div class="box-header">① Supabase（DB）</div>
+        <div class="box-body">
+          <div class="analogy">例えると → <strong>業務台帳・Excel の表</strong></div>
+          <h3>何を入れる？</h3>
+          <ul>
+            <li>案件名・発注者</li>
+            <li>進捗（編集中・承認待ちなど）</li>
+            <li>採点項目・適合チェック結果</li>
+            <li>承認・差戻しの記録</li>
+          </ul>
+          <h3 style="margin-top:12px">なぜ使う？</h3>
+          <ul>
+            <li>閉じても消えない</li>
+            <li>案件ごとに変わるデータ向き</li>
+          </ul>
+          <span class="status now">✓ いま使っている</span>
+        </div>
+      </div>
+
+      <div class="box github">
+        <div class="box-header">② GitHub（コード）</div>
+        <div class="box-body">
+          <div class="analogy">例えると → <strong>設計図・レシピ</strong></div>
+          <h3>何を入れる？</h3>
+          <ul>
+            <li>画面の見た目</li>
+            <li>ボタンのルール</li>
+            <li>API の処理</li>
+            <li>デモ用サンプル</li>
+          </ul>
+          <h3 style="margin-top:12px">なぜ使う？</h3>
+          <ul>
+            <li>コードのバックアップ</li>
+            <li>Vercel がここから公開</li>
+          </ul>
+          <span class="status now">✓ いま使っている</span>
+        </div>
+      </div>
+
+      <div class="box storage">
+        <div class="box-header">③ Storage（ファイル置き場）</div>
+        <div class="box-body">
+          <div class="analogy">例えると → <strong>Google ドライブ・書類棚</strong></div>
+          <h3>何を入れる？</h3>
+          <ul>
+            <li>入札図書 PDF</li>
+            <li>生成した Word</li>
+            <li>出力した PDF</li>
+          </ul>
+          <h3 style="margin-top:12px">なぜ使う？</h3>
+          <ul>
+            <li>ファイルは DB よりこちらが向く</li>
+            <li>ダウンロードしやすい</li>
+          </ul>
+          <span class="status future">これから使う予定</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 比較表 -->
+    <div class="compare">
+      <h2>3つを並べて比べる</h2>
+      <table>
+        <tr>
+          <th>観点</th>
+          <th>Supabase</th>
+          <th>GitHub</th>
+          <th>Storage</th>
+        </tr>
+        <tr>
+          <th>入れるもの</th>
+          <td>文字・数字・状態<br>（表に書けるデータ）</td>
+          <td>プログラム<br>（.tsx などのコード）</td>
+          <td>PDF・Word など<br>（ファイル本体）</td>
+        </tr>
+        <tr>
+          <th>誰が変える？</th>
+          <td>ユーザーが<br>画面で操作すると変わる</td>
+          <td>開発者が<br>コードを直すと変わる</td>
+          <td>ユーザーが<br>アップロードすると増える</td>
+        </tr>
+        <tr>
+          <th>あなたのツール</th>
+          <td>案件データを保存</td>
+          <td>アプリの設計図を保存</td>
+          <td>まだ未実装</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- ツールでの流れ -->
+    <div class="tool-flow">
+      <h2>あなたのツールでは、こう動いている</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <p><span class="tag gh">GitHub</span> に書いたプログラムを <strong>Vercel</strong> が読み取り、Web サイトとして公開する</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <p>ユーザーが「新規案件」を登録すると、<span class="tag db">Supabase</span> の表（proposal_cases）に1行追加される</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <p>チェックリスト確定・適合チェック・承認も、すべて <span class="tag db">Supabase</span> に保存される（F5 しても残る）</p>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <p>将来、Word をアップロードしたら <span class="tag st">Storage</span> にファイルを置き、DB には「そのファイルの場所」だけ書く予定</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary">
+      DB ＝ 案件の中身 ／ GitHub ＝ アプリの作り方 ／ Storage ＝ ファイル
+    </div>
+
+    <p class="footer">技術提案書サポート — 学習用図解<br>公開デモ: proposal-support.vercel.app/proposal</p>
+  </div>
+</body>
+</html>

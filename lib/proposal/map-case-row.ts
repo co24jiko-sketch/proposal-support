@@ -1,5 +1,43 @@
 import type { ProposalCaseRow } from "@/lib/supabase/types";
-import type { ApprovalRecord, CaseStatus, ProposalCase } from "@/lib/proposal/types";
+import type {
+  ApprovalRecord,
+  CaseStatus,
+  ChecklistItem,
+  ComplianceItem,
+  ProposalCase,
+} from "@/lib/proposal/types";
+
+const DEFAULT_GENERATED_SECTIONS = {
+  summary: false,
+  focusPoints: false,
+  detail: false,
+  effects: false,
+} as const;
+
+function parseChecklistItems(value: unknown): ChecklistItem[] {
+  if (!Array.isArray(value)) return [];
+  return value as ChecklistItem[];
+}
+
+function parseComplianceItems(value: unknown): ComplianceItem[] {
+  if (!Array.isArray(value)) return [];
+  return value as ComplianceItem[];
+}
+
+function parseGeneratedSections(
+  value: unknown
+): ProposalCase["generatedSections"] {
+  if (!value || typeof value !== "object") {
+    return { ...DEFAULT_GENERATED_SECTIONS };
+  }
+  const row = value as Record<string, unknown>;
+  return {
+    summary: row.summary === true,
+    focusPoints: row.focusPoints === true,
+    detail: row.detail === true,
+    effects: row.effects === true,
+  };
+}
 
 function formatDate(iso: string): string {
   return iso.slice(0, 10);
@@ -54,8 +92,8 @@ export function rowToProposalCase(row: ProposalCaseRow): ProposalCase {
       surveyPlanOutline: row.survey_plan_outline,
     },
     checklistConfirmed: isChecklistConfirmed(row),
-    checklistItems: [],
-    complianceItems: [],
+    checklistItems: parseChecklistItems(row.checklist_items),
+    complianceItems: parseComplianceItems(row.compliance_items),
     managerApproval: toApprovalRecord(
       row.manager_approved_at,
       row.manager_approver_name,
@@ -71,11 +109,9 @@ export function rowToProposalCase(row: ProposalCaseRow): ProposalCase {
     versions: [],
     auditLog: [],
     referencedLibraryIds: [],
-    generatedSections: {
-      summary: false,
-      focusPoints: false,
-      detail: false,
-      effects: false,
-    },
+    currentWordVersion: row.current_word_version ?? undefined,
+    wordFilePath: row.word_file_path ?? undefined,
+    pdfFilePath: row.pdf_file_path ?? undefined,
+    generatedSections: parseGeneratedSections(row.generated_sections),
   };
 }

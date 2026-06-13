@@ -43,11 +43,45 @@ export function ApprovalTab({ caseItem }: { caseItem: ProposalCase }) {
   const { role } = useProposal();
   const [returnReason, setReturnReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const summary = getComplianceSummary(caseItem);
   const canApprove = isPendingApprovalForRole(role, caseItem);
   const draftHref = `/proposal/cases/${caseItem.id}?tab=draft`;
+
+  async function handleExportPdf() {
+    setErrorMessage(null);
+    setIsExportingPdf(true);
+
+    try {
+      if (isDbCase(caseItem.id)) {
+        const response = await fetch(
+          `/api/proposal/cases/${caseItem.id}/generate-pdf`,
+          { method: "POST" }
+        );
+
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          throw new Error(body?.error ?? "PDF 出力に失敗しました");
+        }
+
+        window.location.href = `/api/proposal/cases/${caseItem.id}/download-pdf`;
+        router.refresh();
+        return;
+      }
+
+      window.alert("モック案件では PDF 出力のデモのみです");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "PDF 出力に失敗しました"
+      );
+    } finally {
+      setIsExportingPdf(false);
+    }
+  }
 
   async function handleApprove() {
     if (role !== "manager" && role !== "director") return;
@@ -184,7 +218,27 @@ export function ApprovalTab({ caseItem }: { caseItem: ProposalCase }) {
               </p>
             )}
             {caseItem.status === "approved" && (
-              <Button>提出版 PDF を出力</Button>
+              <div className="space-y-2">
+                <Button
+                  onClick={() => void handleExportPdf()}
+                  disabled={isExportingPdf}
+                >
+                  {isExportingPdf ? "PDF生成中..." : "提出版 PDF を出力"}
+                </Button>
+                {caseItem.pdfFilePath && isDbCase(caseItem.id) && (
+                  <Button
+                    variant="outline"
+                    render={
+                      <a
+                        href={`/api/proposal/cases/${caseItem.id}/download-pdf`}
+                        download
+                      />
+                    }
+                  >
+                    保存済み PDF を再ダウンロード
+                  </Button>
+                )}
+              </div>
             )}
             {caseItem.status === "returned" && role === "assignee" && (
               <Button render={<Link href={draftHref} />}>

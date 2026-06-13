@@ -1,5 +1,17 @@
+import { buildMockPdfBuffer, buildMockWordContent } from "@/lib/proposal/document-content";
+import {
+  pdfObjectPath,
+  uploadProposalFile,
+  wordObjectPath,
+} from "@/lib/proposal/file-storage";
+import { generateMockComplianceItems } from "@/lib/proposal/compliance-mock";
 import { rowToProposalCase } from "@/lib/proposal/map-case-row";
-import type { ProposalCase, UserRole } from "@/lib/proposal/types";
+import { SAMPLE_CHECKLIST_ITEMS } from "@/lib/proposal/sample-checklist";
+import type {
+  ChecklistItem,
+  ProposalCase,
+  UserRole,
+} from "@/lib/proposal/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ProposalCaseRow } from "@/lib/supabase/types";
 
@@ -102,6 +114,210 @@ export async function confirmChecklist(id: string): Promise<ProposalCase> {
 
   if (error) {
     throw new Error(`チェックリストの確定に失敗しました: ${error.message}`);
+  }
+
+  return rowToProposalCase(data as ProposalCaseRow);
+}
+
+export async function seedChecklistItems(id: string): Promise<ProposalCase> {
+  const existing = await getProposalCaseById(id);
+
+  if (!existing) {
+    throw new Error("案件が見つかりません");
+  }
+
+  if (existing.checklistConfirmed) {
+    throw new Error("確定済みのチェックリストは編集できません");
+  }
+
+  if (existing.checklistItems.length > 0) {
+    return existing;
+  }
+
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("proposal_cases")
+    .update({ checklist_items: SAMPLE_CHECKLIST_ITEMS })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(`採点項目の保存に失敗しました: ${error.message}`);
+  }
+
+  return rowToProposalCase(data as ProposalCaseRow);
+}
+
+export async function saveChecklistItems(
+  id: string,
+  items: ChecklistItem[]
+): Promise<ProposalCase> {
+  const existing = await getProposalCaseById(id);
+
+  if (!existing) {
+    throw new Error("案件が見つかりません");
+  }
+
+  if (existing.checklistConfirmed) {
+    throw new Error("確定済みのチェックリストは編集できません");
+  }
+
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("proposal_cases")
+    .update({ checklist_items: items })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(`採点項目の保存に失敗しました: ${error.message}`);
+  }
+
+  return rowToProposalCase(data as ProposalCaseRow);
+}
+
+export async function generateDraft(id: string): Promise<ProposalCase> {
+  const existing = await getProposalCaseById(id);
+
+  if (!existing) {
+    throw new Error("案件が見つかりません");
+  }
+
+  if (!existing.checklistConfirmed) {
+    throw new Error("チェックリストを確定してから初稿を生成してください");
+  }
+
+  const version = "v1";
+  const wordPath = wordObjectPath(id, version);
+
+  try {
+    await uploadProposalFile(
+      wordPath,
+      buildMockWordContent(existing),
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Word ファイルの保存に失敗しました";
+    throw new Error(`${message}（Supabase Storage の SQL を実行済みか確認してください）`);
+  }
+
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("proposal_cases")
+    .update({
+      generated_sections: {
+        summary: true,
+        focusPoints: true,
+        detail: true,
+        effects: true,
+      },
+      status: "editing",
+      current_word_version: version,
+      word_file_path: wordPath,
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(`初稿生成の保存に失敗しました: ${error.message}`);
+  }
+
+  return rowToProposalCase(data as ProposalCaseRow);
+}
+
+export async function runComplianceCheck(id: string): Promise<ProposalCase> {
+  const existing = await getProposalCaseById(id);
+
+  if (!existing) {
+    throw new Error("案件が見つかりません");
+  }
+
+  const hasGenerated = Object.values(existing.generatedSections).some(Boolean);
+  if (!hasGenerated) {
+    throw new Error("初稿を生成してから適合チェックを実行してください");
+  }
+
+  if (existing.checklistItems.length === 0) {
+    throw new Error("採点項目がありません。チェックリストを確認してください");
+  }
+
+  const complianceItems = generateMockComplianceItems(existing.checklistItems);
+  const nextVersion = existing.currentWordVersion
+    ? `v${Number.parseInt(existing.currentWordVersion.replace(/\D/g, ""), 10) + 1 || 2}`
+    : "v2";
+  const wordPath = wordObjectPath(id, nextVersion);
+
+  try {
+    await uploadProposalFile(
+      wordPath,
+      buildMockWordContent(existing),
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Word ファイルの保存に失敗しました";
+    throw new Error(`${message}（Supabase Storage の SQL を実行済みか確認してください）`);
+  }
+
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("proposal_cases")
+    .update({
+      compliance_items: complianceItems,
+      current_word_version: nextVersion,
+      word_file_path: wordPath,
+      status: "editing",
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(`適合チェック結果の保存に失敗しました: ${error.message}`);
+  }
+
+  return rowToProposalCase(data as ProposalCaseRow);
+}
+
+export async function generateSubmissionPdf(id: string): Promise<ProposalCase> {
+  const existing = await getProposalCaseById(id);
+
+  if (!existing) {
+    throw new Error("案件が見つかりません");
+  }
+
+  if (existing.status !== "approved") {
+    throw new Error("承認済みの案件のみ PDF を出力できます");
+  }
+
+  const pdfPath = pdfObjectPath(id);
+
+  try {
+    await uploadProposalFile(
+      pdfPath,
+      buildMockPdfBuffer(existing.projectName),
+      "application/pdf"
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "PDF ファイルの保存に失敗しました";
+    throw new Error(`${message}（Supabase Storage の SQL を実行済みか確認してください）`);
+  }
+
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("proposal_cases")
+    .update({ pdf_file_path: pdfPath })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(`PDF 出力の保存に失敗しました: ${error.message}`);
   }
 
   return rowToProposalCase(data as ProposalCaseRow);

@@ -1,15 +1,12 @@
 "use client";
 
-
-
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { Download, RefreshCw, Sparkles } from "lucide-react";
 
-
-
 import { ReferenceContextBar } from "@/components/proposal/ReferenceContextBar";
-
 import { useProposal } from "@/components/proposal/proposal-context";
 
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +32,7 @@ import {
 } from "@/components/ui/table";
 
 import type { ProposalCase } from "@/lib/proposal/types";
-
+import { isDbCase } from "@/lib/proposal/utils";
 import { cn } from "@/lib/utils";
 
 
@@ -97,14 +94,88 @@ function getReimportBlockReason(caseItem: ProposalCase): string | null {
 
 
 export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
-
+  const router = useRouter();
   const { llmStopped } = useProposal();
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isReimporting, setIsReimporting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const generateBlockReason = getDraftGenerateBlockReason(caseItem, llmStopped);
-
   const reimportBlockReason = getReimportBlockReason(caseItem);
-
   const hasGenerated = Object.values(caseItem.generatedSections).some(Boolean);
+  const complianceHref = `/proposal/cases/${caseItem.id}?tab=compliance`;
+  const canDownloadWord =
+    hasGenerated && (!isDbCase(caseItem.id) || !!caseItem.wordFilePath);
+  const wordDownloadHref = isDbCase(caseItem.id)
+    ? `/api/proposal/cases/${caseItem.id}/download-word`
+    : undefined;
+
+  async function handleGenerateDraft() {
+    if (generateBlockReason) return;
+
+    setErrorMessage(null);
+    setIsGenerating(true);
+
+    try {
+      if (isDbCase(caseItem.id)) {
+        const response = await fetch(
+          `/api/proposal/cases/${caseItem.id}/generate-draft`,
+          { method: "POST" }
+        );
+
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          throw new Error(body?.error ?? "初稿生成の保存に失敗しました");
+        }
+      }
+
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "初稿生成の保存に失敗しました"
+      );
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
+  async function handleReimport() {
+    if (reimportBlockReason) return;
+
+    setErrorMessage(null);
+    setIsReimporting(true);
+
+    try {
+      if (isDbCase(caseItem.id)) {
+        const response = await fetch(
+          `/api/proposal/cases/${caseItem.id}/run-compliance`,
+          { method: "POST" }
+        );
+
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          throw new Error(
+            body?.error ?? "適合チェック結果の保存に失敗しました"
+          );
+        }
+      }
+
+      router.push(complianceHref);
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "適合チェック結果の保存に失敗しました"
+      );
+    } finally {
+      setIsReimporting(false);
+    }
+  }
 
   const phaseAActive =
 
@@ -234,20 +305,25 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
 
           <div className="flex flex-wrap gap-2">
 
-            <Button disabled={!!generateBlockReason}>
-
+            <Button
+              disabled={!!generateBlockReason || isGenerating}
+              onClick={() => void handleGenerateDraft()}
+            >
               <Sparkles />
-
-              初稿を一括生成
-
+              {isGenerating ? "生成中..." : "初稿を一括生成"}
             </Button>
 
-            <Button variant="outline" disabled={!caseItem.checklistConfirmed}>
-
+            <Button
+              variant="outline"
+              disabled={!canDownloadWord}
+              render={
+                wordDownloadHref ? (
+                  <a href={wordDownloadHref} download />
+                ) : undefined
+              }
+            >
               <Download />
-
               Wordをダウンロード
-
             </Button>
 
           </div>
@@ -277,6 +353,10 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
             </p>
 
           ) : null}
+
+          {errorMessage && (
+            <p className="text-xs text-red-600">{errorMessage}</p>
+          )}
 
         </CardContent>
 
@@ -325,27 +405,10 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
             </span>
 
             <Button
-
-              disabled={!!reimportBlockReason}
-
-              render={
-
-                !reimportBlockReason ? (
-
-                  <Link
-
-                    href={`/proposal/cases/${caseItem.id}?tab=compliance`}
-
-                  />
-
-                ) : undefined
-
-              }
-
+              disabled={!!reimportBlockReason || isReimporting}
+              onClick={() => void handleReimport()}
             >
-
-              再取込して適合チェックへ
-
+              {isReimporting ? "チェック中..." : "再取込して適合チェックへ"}
             </Button>
 
           </div>
