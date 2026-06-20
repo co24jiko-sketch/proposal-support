@@ -11,6 +11,7 @@ import {
   ComplianceTable,
 } from "@/components/proposal/ComplianceTable";
 import { getComplianceSummary } from "@/lib/proposal/mock-data";
+import { downloadProposalPdf } from "@/lib/proposal/client-download";
 import type { ProposalCase, UserRole } from "@/lib/proposal/types";
 import { isDbCase, isPendingApprovalForRole } from "@/lib/proposal/utils";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ export function ApprovalTab({ caseItem }: { caseItem: ProposalCase }) {
   const [returnReason, setReturnReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const summary = getComplianceSummary(caseItem);
@@ -67,10 +69,8 @@ export function ApprovalTab({ caseItem }: { caseItem: ProposalCase }) {
           throw new Error(body?.error ?? "PDF 出力に失敗しました");
         }
 
-        // Storage の署名付き URL へリダイレクト（Vercel の 4MB 応答制限を回避）
-        window.location.assign(
-          `/api/proposal/cases/${caseItem.id}/download-pdf`
-        );
+        await downloadProposalPdf(caseItem.id);
+        router.refresh();
         return;
       }
 
@@ -81,6 +81,21 @@ export function ApprovalTab({ caseItem }: { caseItem: ProposalCase }) {
       );
     } finally {
       setIsExportingPdf(false);
+    }
+  }
+
+  async function handleRedownloadPdf() {
+    setErrorMessage(null);
+    setIsDownloadingPdf(true);
+
+    try {
+      await downloadProposalPdf(caseItem.id);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "PDF のダウンロードに失敗しました"
+      );
+    } finally {
+      setIsDownloadingPdf(false);
     }
   }
 
@@ -229,14 +244,10 @@ export function ApprovalTab({ caseItem }: { caseItem: ProposalCase }) {
                 {caseItem.pdfFilePath && isDbCase(caseItem.id) && (
                   <Button
                     variant="outline"
-                    render={
-                      <a
-                        href={`/api/proposal/cases/${caseItem.id}/download-pdf`}
-                        download
-                      />
-                    }
+                    disabled={isDownloadingPdf}
+                    onClick={() => void handleRedownloadPdf()}
                   >
-                    保存済み PDF を再ダウンロード
+                    {isDownloadingPdf ? "ダウンロード中..." : "保存済み PDF を再ダウンロード"}
                   </Button>
                 )}
               </div>

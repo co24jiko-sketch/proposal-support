@@ -51,15 +51,14 @@ export async function downloadProposalFile(path: string): Promise<{
   };
 }
 
-export async function createSignedDownloadUrl(
+export async function createSignedReadUrl(
   path: string,
-  filename: string,
   expiresInSeconds = 3600
 ): Promise<string> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.storage
     .from(PROPOSAL_FILES_BUCKET)
-    .createSignedUrl(path, expiresInSeconds, { download: filename });
+    .createSignedUrl(path, expiresInSeconds);
 
   if (error || !data?.signedUrl) {
     throw new Error(

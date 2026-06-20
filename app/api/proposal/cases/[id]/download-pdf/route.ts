@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 
 import { getProposalCaseById } from "@/lib/proposal/case-repository";
-import { createSignedDownloadUrl } from "@/lib/proposal/file-storage";
+import { proposalPdfFilename } from "@/lib/proposal/filenames";
+import { createSignedReadUrl } from "@/lib/proposal/file-storage";
 import { getRouteAuthContext, mapRepositoryError } from "@/lib/proposal/route-auth";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const authResult = await getRouteAuthContext();
   if (!authResult.ok) return authResult.response;
 
@@ -27,8 +28,13 @@ export async function GET(_request: Request, context: RouteContext) {
       );
     }
 
-    const filename = `${caseItem.projectName}-submission.pdf`;
-    const signedUrl = await createSignedDownloadUrl(caseItem.pdfFilePath, filename);
+    const filename = proposalPdfFilename(caseItem.projectName);
+    const signedUrl = await createSignedReadUrl(caseItem.pdfFilePath);
+
+    const { searchParams } = new URL(request.url);
+    if (searchParams.get("format") === "json") {
+      return NextResponse.json({ url: signedUrl, filename });
+    }
 
     return NextResponse.redirect(signedUrl);
   } catch (error) {
