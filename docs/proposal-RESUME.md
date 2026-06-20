@@ -1,6 +1,6 @@
 # 技術提案書サポート — 次回再開用メモ
 
-最終更新: 2026-06-20（Phase 3 完了・ローカル確認済み）
+最終更新: 2026-06-20（Phase 4 完了・パイロット準備済み）
 
 ## クイックスタート
 
@@ -21,6 +21,7 @@ npm run dev
 | UIコンポーネント | `components/proposal/` |
 | 型・ラベル・モック | `lib/proposal/` |
 | 再開用メモ（本ファイル） | `docs/proposal-RESUME.md` |
+| **パイロット運用手順** | `docs/proposal-pilot-guide.md` |
 | セッション用スライド画像 | `docs/proposal-storage-slide.png` |
 | 保存場所の説明図解（HTML） | `docs/proposal-storage-explainer.html` |
 | 保存場所の説明図解（画像） | `docs/proposal-storage-explainer.png` |
@@ -198,8 +199,9 @@ npx --yes surge <一時フォルダ> --domain diagram-proposal-tool-concept.surg
 |---|---|---|
 | 1 | 認証・権限・RLS | ✅ 完了（Supabase + ローカル/Vercel 確認済み） |
 | 2 | Word/PDF 実ファイル生成 | ✅ 完了（ローカル + Vercel 確認済み） |
-| 3 | 適合チェック本実装 | ✅ 完了（ローカル確認済み） |
-| 4 | パイロット運用（監査ログ等） | 未着手 |
+| 3 | 適合チェック本実装 | ✅ 完了（ローカル + Vercel 確認済み） |
+| 4 | 監査ログ・版履歴 | ✅ 完了（ローカル + Vercel 確認済み） |
+| — | **パイロット運用** | 📋 手順書作成済み・1 人通し確認 OK（`proposal-pilot-guide.md`） |
 
 ### Phase 1 — 認証（2026-06-20 実装）
 
@@ -246,10 +248,9 @@ where assignee_id is null;
 
 ## 次回やること（優先度順）
 
-1. **GitHub push** — Phase 3 コード未 push（`git push github main`）→ Vercel Redeploy
-2. **Phase 4** — 監査ログ・版履歴の DB 永続化
-3. **採点基準マスタ整備** — 正式な基準を `lib/proposal/scoring-templates.ts` に登録（または DB 化）
-4. パイロット準備（運用手順・図解更新など）
+1. **パイロット実施** — `docs/proposal-pilot-guide.md` に沿って試行・フィードバック収集
+2. **採点基準マスタ整備** — 正式な基準を `lib/proposal/scoring-templates.ts` に登録（または DB 化）
+3. **任意改善** — 履歴の JST 表示、Word 手修正再取込 など
 
 ### Phase 3 実装サマリ（2026-06-20 完了）
 
@@ -324,7 +325,8 @@ where assignee_id is null;
 | 適合チェック | Word 本文照合（本実装） | — |
 | 承認フロー | DB 保存済み・通し確認 OK | — |
 | PDF 出力 | Storage 実 PDF + DL 確認 OK | — |
-| 公開 | Vercel 通し確認 OK（Phase 2） | Phase 3 の push & Redeploy |
+| 公開 | Vercel 通し確認 OK | Phase 4 履歴タブ OK（`cd8915d`） |
+| パイロット | 手順書 `proposal-pilot-guide.md` | 実施・フィードバック |
 
 ## 再開手順（自分で始める場合）
 

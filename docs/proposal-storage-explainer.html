@@ -238,6 +238,7 @@
             <li>進捗（編集中・承認待ちなど）</li>
             <li>採点項目・適合チェック結果</li>
             <li>承認・差戻しの記録</li>
+            <li>版履歴・操作ログ（監査）</li>
           </ul>
           <h3 style="margin-top:12px">なぜ使う？</h3>
           <ul>
@@ -283,7 +284,7 @@
             <li>ファイルは DB よりこちらが向く</li>
             <li>ダウンロードしやすい</li>
           </ul>
-          <span class="status future">これから使う予定</span>
+          <span class="status now">✓ いま使っている</span>
         </div>
       </div>
     </div>
@@ -308,13 +309,13 @@
           <th>誰が変える？</th>
           <td>ユーザーが<br>画面で操作すると変わる</td>
           <td>開発者が<br>コードを直すと変わる</td>
-          <td>ユーザーが<br>アップロードすると増える</td>
+          <td>ユーザーが<br>アップロード・生成すると増える</td>
         </tr>
         <tr>
           <th>あなたのツール</th>
-          <td>案件データを保存</td>
+          <td>案件データ・履歴を保存</td>
           <td>アプリの設計図を保存</td>
-          <td>まだ未実装</td>
+          <td>PDF・Word を保存</td>
         </tr>
       </table>
     </div>
@@ -337,7 +338,11 @@
         </div>
         <div class="step">
           <div class="step-num">4</div>
-          <p>将来、Word をアップロードしたら <span class="tag st">Storage</span> にファイルを置き、DB には「そのファイルの場所」だけ書く予定</p>
+          <p>入札図書 PDF・生成 Word・提出 PDF は <span class="tag st">Storage</span> に保存。DB にはファイルの場所と操作ログを記録</p>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <p>版履歴・操作ログは <span class="tag db">Supabase</span> の別テーブル（proposal_case_versions / proposal_audit_log）に保存</p>
         </div>
       </div>
     </div>
@@ -346,7 +351,7 @@
       DB ＝ 案件の中身 ／ GitHub ＝ アプリの作り方 ／ Storage ＝ ファイル
     </div>
 
-    <p class="footer">技術提案書サポート — 学習用図解<br>公開デモ: proposal-support.vercel.app/proposal</p>
+    <p class="footer">技術提案書サポート — 学習用図解<br>公開デモ: <a href="https://proposal-support.vercel.app/proposal/login">proposal-support.vercel.app/proposal/login</a><br>パイロット手順: docs/proposal-pilot-guide.md</p>
   </div>
 </body>
 </html>
