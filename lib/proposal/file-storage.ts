@@ -51,6 +51,25 @@ export async function downloadProposalFile(path: string): Promise<{
   };
 }
 
+export async function createSignedDownloadUrl(
+  path: string,
+  filename: string,
+  expiresInSeconds = 3600
+): Promise<string> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.storage
+    .from(PROPOSAL_FILES_BUCKET)
+    .createSignedUrl(path, expiresInSeconds, { download: filename });
+
+  if (error || !data?.signedUrl) {
+    throw new Error(
+      `署名付き URL の生成に失敗しました: ${error?.message ?? path}`
+    );
+  }
+
+  return data.signedUrl;
+}
+
 export async function getPublicFileUrl(path: string): Promise<string> {
   const supabase = await createSupabaseServerClient();
   const { data } = supabase.storage

@@ -7,6 +7,8 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
+export const maxDuration = 60;
+
 export async function POST(_request: Request, context: RouteContext) {
   const authResult = await getRouteAuthContext();
   if (!authResult.ok) return authResult.response;

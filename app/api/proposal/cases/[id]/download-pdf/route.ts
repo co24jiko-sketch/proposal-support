@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getProposalCaseById } from "@/lib/proposal/case-repository";
-import { downloadProposalFile } from "@/lib/proposal/file-storage";
+import { createSignedDownloadUrl } from "@/lib/proposal/file-storage";
 import { getRouteAuthContext, mapRepositoryError } from "@/lib/proposal/route-auth";
 
 type RouteContext = {
@@ -27,16 +27,10 @@ export async function GET(_request: Request, context: RouteContext) {
       );
     }
 
-    const { data, contentType } = await downloadProposalFile(caseItem.pdfFilePath);
-    const buffer = Buffer.from(await data.arrayBuffer());
     const filename = `${caseItem.projectName}-submission.pdf`;
+    const signedUrl = await createSignedDownloadUrl(caseItem.pdfFilePath, filename);
 
-    return new NextResponse(buffer, {
-      headers: {
-        "Content-Type": contentType,
-        "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
-      },
-    });
+    return NextResponse.redirect(signedUrl);
   } catch (error) {
     return mapRepositoryError(error, "PDF のダウンロードに失敗しました");
   }

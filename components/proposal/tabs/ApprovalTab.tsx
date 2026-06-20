@@ -67,8 +67,10 @@ export function ApprovalTab({ caseItem }: { caseItem: ProposalCase }) {
           throw new Error(body?.error ?? "PDF 出力に失敗しました");
         }
 
-        window.location.href = `/api/proposal/cases/${caseItem.id}/download-pdf`;
-        router.refresh();
+        // Storage の署名付き URL へリダイレクト（Vercel の 4MB 応答制限を回避）
+        window.location.assign(
+          `/api/proposal/cases/${caseItem.id}/download-pdf`
+        );
         return;
       }
 

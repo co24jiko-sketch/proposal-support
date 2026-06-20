@@ -19,11 +19,23 @@ const PAGE_MARGIN = 50;
 
 let cachedJapaneseFontBytes: Uint8Array | null = null;
 
+const JAPANESE_FONT_RELATIVE_PATH = join(
+  "node_modules",
+  "@fontpkg",
+  "ip-aex-gothic",
+  "IPAexGothic.ttf"
+);
+
 function getJapaneseFontBytes(): Uint8Array {
   if (!cachedJapaneseFontBytes) {
-    cachedJapaneseFontBytes = readFileSync(
-      join(process.cwd(), "node_modules/@fontpkg/ip-aex-gothic/IPAexGothic.ttf")
-    );
+    try {
+      cachedJapaneseFontBytes = readFileSync(
+        join(process.cwd(), JAPANESE_FONT_RELATIVE_PATH)
+      );
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "unknown";
+      throw new Error(`日本語フォントの読み込みに失敗しました: ${detail}`);
+    }
   }
 
   return cachedJapaneseFontBytes;
