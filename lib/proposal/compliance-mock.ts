@@ -29,7 +29,7 @@ function nextActionFor(judgment: ComplianceJudgment, label: string): string | un
   return undefined;
 }
 
-/** Word 再取込後の適合チェック（モック）— 採点項目から結果を生成 */
+/** @deprecated 適合チェックは compliance-check.ts を使用 */
 export function generateMockComplianceItems(
   checklistItems: ChecklistItem[]
 ): ComplianceItem[] {

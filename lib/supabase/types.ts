@@ -38,6 +38,8 @@ export interface ProposalCaseRow {
   current_word_version?: string | null;
   word_file_path?: string | null;
   pdf_file_path?: string | null;
+  bid_document_name?: string | null;
+  bid_file_path?: string | null;
   approval_request_reason?: string | null;
   return_reason?: string | null;
   manager_approved_at?: string | null;

@@ -112,6 +112,8 @@ export function rowToProposalCase(row: ProposalCaseRow): ProposalCase {
     currentWordVersion: row.current_word_version ?? undefined,
     wordFilePath: row.word_file_path ?? undefined,
     pdfFilePath: row.pdf_file_path ?? undefined,
+    bidDocumentName: row.bid_document_name ?? undefined,
+    bidFilePath: row.bid_file_path ?? undefined,
     generatedSections: parseGeneratedSections(row.generated_sections),
   };
 }

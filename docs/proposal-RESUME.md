@@ -1,6 +1,6 @@
 # 技術提案書サポート — 次回再開用メモ
 
-最終更新: 2026-06-20（Phase 2 Word/PDF 実ファイル生成・ローカル通し確認完了）
+最終更新: 2026-06-20（Phase 3 完了・ローカル確認済み）
 
 ## クイックスタート
 
@@ -198,7 +198,7 @@ npx --yes surge <一時フォルダ> --domain diagram-proposal-tool-concept.surg
 |---|---|---|
 | 1 | 認証・権限・RLS | ✅ 完了（Supabase + ローカル/Vercel 確認済み） |
 | 2 | Word/PDF 実ファイル生成 | ✅ 完了（ローカル + Vercel 確認済み） |
-| 3 | 適合チェック本実装 | 未着手（現状はモック。採点項目0件はスキップ扱い可） |
+| 3 | 適合チェック本実装 | ✅ 完了（ローカル確認済み） |
 | 4 | パイロット運用（監査ログ等） | 未着手 |
 
 ### Phase 1 — 認証（2026-06-20 実装）
@@ -246,10 +246,23 @@ where assignee_id is null;
 
 ## 次回やること（優先度順）
 
-1. **Phase 2 公開** — `git push github main` → Vercel Redeploy → 公開サイトで Word/PDF 確認
-2. **Phase 3** — 適合チェック本実装（入札図書 PDF からの採点項目抽出）
-3. **Phase 4** — 監査ログ・版履歴の DB 永続化
-4. 外観の修正・図解更新（いつでも可）
+1. **GitHub push** — Phase 3 コード未 push（`git push github main`）→ Vercel Redeploy
+2. **Phase 4** — 監査ログ・版履歴の DB 永続化
+3. **採点基準マスタ整備** — 正式な基準を `lib/proposal/scoring-templates.ts` に登録（または DB 化）
+4. パイロット準備（運用手順・図解更新など）
+
+### Phase 3 実装サマリ（2026-06-20 完了）
+
+| ステップ | 内容 | 主なファイル |
+|---|---|---|
+| 3-1 | 入札図書 PDF アップロード | `upload-bid` API, `add_bid_document.sql` |
+| 3-2 | 採点基準マスタ選択（PDF 抽出は補助） | `scoring-templates.ts`, `apply-scoring-template` API |
+| 3-3 | 適合チェック本実装（Word 本文照合） | `compliance-check.ts`, `docx-text.ts`（mammoth） |
+
+**採点項目の正本:** チェックリストタブの「採点基準マスタ」→「適用する」  
+**入札図書 PDF:** 参照用アップロード（新規案件 Step 2 の「アップロード」ボタンは未実装・案内文のみ）  
+**適合チェック:** Storage の Word を読み、searchKeywords と照合 → ○△×（品質・安全は未記載なら × は正常）  
+**Supabase SQL（未実行の場合）:** `supabase/add_bid_document.sql`（bid_document_name / bid_file_path）
 
 ### パイロット用アカウント
 
@@ -262,8 +275,8 @@ where assignee_id is null;
 
 ### 承認〜PDF の流れ（担当者視点）
 
-1. チェックリスト確定 → 文案タブで初稿生成
-2. 文案タブ **「再取込して適合チェックへ」**
+1. チェックリストで **採点基準マスタを適用** → **確定して初稿生成へ**
+2. 文案タブで **初稿を一括生成** → **再取込して適合チェックへ**
 3. **適合チェック**タブ **「承認を申請する」**（△×ありは理由必須）
 4. 部長 → 支社長が各アカウントで **承認**タブから承認
 5. 担当者で **承認**タブ **「提出版 PDF を出力」**
@@ -276,8 +289,9 @@ where assignee_id is null;
 
 ### 適合チェックを試すとき
 
-- 採点項目あり → サンプル追加または PDF 抽出（未実装）後に確定
+- 採点項目あり → **採点基準マスタを適用**（仮: 地質調査（標準・仮））後に確定
 - 採点項目 **0 件** でも確定→初稿→再取込→適合チェック→承認申請まで可能（スキップ扱いの ○1 件が付く）
+- 地質調査（標準・仮）の想定結果: 調査方針・調査方法=○、品質管理・安全管理=×（自動生成 Word に未記載のため）
 
 ### Supabase SQL 実行手順（✅ 2026-06-13 実行済み）
 
@@ -305,12 +319,12 @@ where assignee_id is null;
 | 領域 | 現状 | 残り |
 |---|---|---|
 | 案件の基本情報 | DB 保存済み | — |
-| チェックリスト確定 | DB 保存済み | 採点項目の PDF 抽出（サンプル追加は DB 保存済み） |
-| 文案・Word | Storage に実 .docx 保存 + DL | — |
-| 適合チェック | DB 保存済み・モック判定 | 実 PDF 抽出（Phase 3） |
+| チェックリスト確定 | DB 保存済み | 採点基準マスタの DB 化・正式基準の登録 |
+| 文案・Word | Storage に実 .docx 保存 + DL | 人手編集後の再取込（将来） |
+| 適合チェック | Word 本文照合（本実装） | — |
 | 承認フロー | DB 保存済み・通し確認 OK | — |
 | PDF 出力 | Storage 実 PDF + DL 確認 OK | — |
-| 公開 | Vercel 通し確認 OK（`e99d17f`） | — |
+| 公開 | Vercel 通し確認 OK（Phase 2） | Phase 3 の push & Redeploy |
 
 ## 再開手順（自分で始める場合）
 
@@ -337,9 +351,12 @@ C:\Users\haram\src\workspace-ui-kit\docs\proposal-RESUME.md を読んで、
 【完了済み（2026-06-20）】
 - Phase 1 認証: Supabase 設定・3ロール・RLS 完了
 - Phase 2 Word/PDF: 実 .docx / 実 PDF（日本語）生成・Storage 保存・DL 完了
-  - Word 約 9KB / PDF 約 4MB（日本語フォント同梱）
-  - Vercel 公開サイトで PDF 生成・DL・日本語ファイル名 OK
-- GitHub push 済み: e99d17f（git push github main）
+  - Vercel 公開サイトで PDF 生成・DL・日本語ファイル名 OK（push: e99d17f 時点）
+- Phase 3 完了（ローカル確認済み・未 push）:
+  - 入札図書 PDF アップロード（チェックリストタブ「PDFをアップロード」）
+  - 採点基準マスタ選択（`scoring-templates.ts`、PDF 抽出は補助）
+  - 適合チェック本実装（Word 本文と searchKeywords 照合 → ○△×）
+  - Supabase SQL: `add_bid_document.sql` 実行済み想定
 - 採点項目 0 件でも適合チェック→承認申請可能（スキップ扱い）
 - 公開: https://proposal-support.vercel.app/proposal/login
 
@@ -349,9 +366,10 @@ C:\Users\haram\src\workspace-ui-kit\docs\proposal-RESUME.md を読んで、
 - ※ 支社長ログイン失敗時: Dashboard でユーザー再作成 → SQL で role=director
 
 【次の作業（優先度順）】
-1. Phase 3: 適合チェック本実装（入札 PDF から採点項目抽出）
+1. Phase 3 の GitHub push → Vercel Redeploy → 公開サイト確認
 2. Phase 4: 監査ログ・版履歴の DB 永続化
-3. パイロット準備（運用手順・図解更新など）
+3. 採点基準マスタの正式登録（または DB 化）
+4. パイロット準備（運用手順・図解更新など）
 
 【進め方の希望】
 手順は1つずつ指示して、できたか確認してから次に進めてください。
@@ -360,7 +378,14 @@ npm run dev が止まっていたら起動してください（3000 固まり時
 
 ## 作業終了時メモ
 
-### 2026-06-20（Phase 2 完成・作業一時終了）
+### 2026-06-20（Phase 3 完了・作業一時終了）
+
+- **Phase 3-1** — 入札図書 PDF アップロード（Storage + DB、チェックリストタブ）
+- **Phase 3-2** — 採点基準マスタ選択（仮マスタ 2 件、PDF 抽出は見送り）
+- **Phase 3-3** — 適合チェック本実装（mammoth + キーワード照合、ローカル確認 OK）
+- **注意** — 新規案件 Step 2 の「アップロード」は未実装。PDF は案件詳細のチェックリストタブから
+- **未 push** — Phase 3 コードはローカルのみ。次回 `git push github main` 推奨
+- **次回:** push & Redeploy → Phase 4
 
 - **Vercel PDF** — フォント同梱 + 署名付き URL DL（`46c4b6a`）→ 公開サイトで PDF 出力 OK
 - **PDF ファイル名** — 日本語文字化け修正（Blob DL、`e99d17f`）→ `案件名-submission.pdf` OK

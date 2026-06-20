@@ -190,9 +190,11 @@ export function NewCaseWizard() {
             <CardTitle>任意資料</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label>入札図書 PDF（推奨）</Label>
-              <Button variant="outline">アップロード</Button>
+              <p className="text-sm text-muted-foreground">
+                案件作成後、チェックリストタブの「PDFをアップロード」から登録できます（この画面では不要です）。
+              </p>
             </div>
             <div className="space-y-2">
               <Label>参考事例（ライブラリから選択）</Label>

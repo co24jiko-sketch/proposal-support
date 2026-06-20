@@ -10,6 +10,10 @@ export function pdfObjectPath(caseId: string): string {
   return `cases/${caseId}/submission.pdf`;
 }
 
+export function bidObjectPath(caseId: string): string {
+  return `cases/${caseId}/bid-document.pdf`;
+}
+
 export async function uploadProposalFile(
   path: string,
   body: Buffer | string,

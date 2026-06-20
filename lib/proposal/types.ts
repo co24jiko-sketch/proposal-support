@@ -45,6 +45,8 @@ export interface ChecklistItem {
   label: string;
   points: number;
   confidence: ChecklistConfidence;
+  /** 適合チェック時に文案内を検索する語（マスタ登録時に指定） */
+  searchKeywords?: string[];
 }
 
 export interface ComplianceItem {
@@ -98,6 +100,7 @@ export interface ProposalCase {
   auditLog: AuditLogEntry[];
   referencedLibraryIds: string[];
   bidDocumentName?: string;
+  bidFilePath?: string;
   currentWordVersion?: string;
   wordFilePath?: string;
   pdfFilePath?: string;

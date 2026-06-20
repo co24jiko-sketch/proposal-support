@@ -9,11 +9,19 @@ import {
   buildWordDocxBuffer,
 } from "@/lib/proposal/document-content";
 import {
+  bidObjectPath,
+  downloadProposalFile,
   pdfObjectPath,
   uploadProposalFile,
   wordObjectPath,
 } from "@/lib/proposal/file-storage";
-import { generateMockComplianceItems } from "@/lib/proposal/compliance-mock";
+import {
+  getScoringTemplate,
+  instantiateChecklistItems,
+} from "@/lib/proposal/scoring-templates";
+import { generateComplianceItems } from "@/lib/proposal/compliance-check";
+import { extractDocxText } from "@/lib/proposal/docx-text";
+import { extractChecklistItemsFromPdf } from "@/lib/proposal/extract-checklist";
 import { rowToProposalCase } from "@/lib/proposal/map-case-row";
 import { SAMPLE_CHECKLIST_ITEMS } from "@/lib/proposal/sample-checklist";
 import type { ChecklistItem, ProposalCase } from "@/lib/proposal/types";
@@ -199,6 +207,143 @@ export async function saveChecklistItems(
   return rowToProposalCase(data as ProposalCaseRow);
 }
 
+export async function extractChecklistFromBid(
+  auth: AuthContext,
+  id: string
+): Promise<ProposalCase> {
+  const existing = await getProposalCaseById(id);
+
+  if (!existing) {
+    throw new Error("案件が見つかりません");
+  }
+
+  assertCanManageCase(auth, existing);
+
+  if (existing.checklistConfirmed) {
+    throw new Error("確定済みのチェックリストは編集できません");
+  }
+
+  if (!existing.bidFilePath) {
+    throw new Error("入札図書 PDF をアップロードしてから抽出してください");
+  }
+
+  const { data } = await downloadProposalFile(existing.bidFilePath);
+  const buffer = Buffer.from(await data.arrayBuffer());
+  const items = await extractChecklistItemsFromPdf(buffer);
+
+  const supabase = await createSupabaseServerClient();
+  const { data: updated, error } = await supabase
+    .from("proposal_cases")
+    .update({ checklist_items: items })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(`採点項目の保存に失敗しました: ${error.message}`);
+  }
+
+  return rowToProposalCase(updated as ProposalCaseRow);
+}
+
+export async function applyScoringTemplate(
+  auth: AuthContext,
+  id: string,
+  templateId: string
+): Promise<ProposalCase> {
+  const template = getScoringTemplate(templateId);
+
+  if (!template) {
+    throw new Error("採点基準が見つかりません");
+  }
+
+  const existing = await getProposalCaseById(id);
+
+  if (!existing) {
+    throw new Error("案件が見つかりません");
+  }
+
+  assertCanManageCase(auth, existing);
+
+  if (existing.checklistConfirmed) {
+    throw new Error("確定済みのチェックリストは編集できません");
+  }
+
+  const items = instantiateChecklistItems(template);
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("proposal_cases")
+    .update({ checklist_items: items })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(`採点項目の保存に失敗しました: ${error.message}`);
+  }
+
+  return rowToProposalCase(data as ProposalCaseRow);
+}
+
+const MAX_BID_PDF_BYTES = 20 * 1024 * 1024;
+
+export async function uploadBidDocument(
+  auth: AuthContext,
+  id: string,
+  file: { name: string; buffer: Buffer; contentType: string }
+): Promise<ProposalCase> {
+  const existing = await getProposalCaseById(id);
+
+  if (!existing) {
+    throw new Error("案件が見つかりません");
+  }
+
+  assertCanManageCase(auth, existing);
+
+  if (existing.checklistConfirmed) {
+    throw new Error("確定済みのチェックリストがあるため入札図書は変更できません");
+  }
+
+  if (!file.name.toLowerCase().endsWith(".pdf")) {
+    throw new Error("入札図書は PDF ファイルのみアップロードできます");
+  }
+
+  if (file.buffer.byteLength > MAX_BID_PDF_BYTES) {
+    throw new Error("入札図書 PDF は 20MB 以下にしてください");
+  }
+
+  const bidPath = bidObjectPath(id);
+
+  try {
+    await uploadProposalFile(
+      bidPath,
+      file.buffer,
+      file.contentType || "application/pdf"
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "入札図書のアップロードに失敗しました";
+    throw new Error(`${message}（Supabase Storage の SQL を実行済みか確認してください）`);
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("proposal_cases")
+    .update({
+      bid_document_name: file.name,
+      bid_file_path: bidPath,
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(`入札図書の保存に失敗しました: ${error.message}`);
+  }
+
+  return rowToProposalCase(data as ProposalCaseRow);
+}
+
 export async function generateDraft(
   auth: AuthContext,
   id: string
@@ -255,6 +400,25 @@ export async function generateDraft(
   return rowToProposalCase(data as ProposalCaseRow);
 }
 
+async function loadProposalDocumentText(caseItem: ProposalCase): Promise<string> {
+  if (caseItem.wordFilePath) {
+    const { data } = await downloadProposalFile(caseItem.wordFilePath);
+    const buffer = Buffer.from(await data.arrayBuffer());
+    return extractDocxText(buffer);
+  }
+
+  const { basicInput } = caseItem;
+  return [
+    basicInput.projectName,
+    basicInput.surveyPurpose,
+    basicInput.surveyPlanOutline,
+    basicInput.siteKnownInfo,
+  ]
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export async function runComplianceCheck(
   auth: AuthContext,
   id: string
@@ -272,7 +436,11 @@ export async function runComplianceCheck(
     throw new Error("初稿を生成してから適合チェックを実行してください");
   }
 
-  const complianceItems = generateMockComplianceItems(existing.checklistItems);
+  const documentText = await loadProposalDocumentText(existing);
+  const complianceItems = generateComplianceItems(
+    existing.checklistItems,
+    documentText
+  );
   const nextVersion = existing.currentWordVersion
     ? `v${Number.parseInt(existing.currentWordVersion.replace(/\D/g, ""), 10) + 1 || 2}`
     : "v2";
