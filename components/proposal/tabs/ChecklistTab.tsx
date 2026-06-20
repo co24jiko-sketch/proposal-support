@@ -165,7 +165,7 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
           {caseItem.checklistItems.length === 0 && !confirmed && (
             <div className="mt-3 space-y-2">
               <p className="text-sm text-muted-foreground">
-                採点項目はまだありません。PDF抽出は未実装のため、サンプル項目を追加するか、そのまま確定して次に進めます。
+                採点項目はまだありません。PDF抽出は未実装のため、サンプル項目を追加するか、0件のまま確定して次に進めます（適合チェックはスキップ扱いになります）。
               </p>
               {isDbCase(caseItem.id) && (
                 <Button

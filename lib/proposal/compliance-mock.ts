@@ -33,6 +33,18 @@ function nextActionFor(judgment: ComplianceJudgment, label: string): string | un
 export function generateMockComplianceItems(
   checklistItems: ChecklistItem[]
 ): ComplianceItem[] {
+  if (checklistItems.length === 0) {
+    return [
+      {
+        id: "cp-pilot-skip",
+        checklistItemId: "pilot-skip",
+        label: "（採点項目なし — パイロット確認用）",
+        judgment: "ok",
+        evidence: "採点項目未登録のため、適合チェックをスキップしました",
+      },
+    ];
+  }
+
   return checklistItems.map((item, index) => {
     const judgment = judgmentForItem(item, index);
     return {

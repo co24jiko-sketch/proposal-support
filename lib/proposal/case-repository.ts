@@ -4,7 +4,10 @@ import {
   canManageCase,
   canReturnCase,
 } from "@/lib/proposal/auth";
-import { buildMockPdfBuffer, buildMockWordContent } from "@/lib/proposal/document-content";
+import {
+  buildSubmissionPdfBuffer,
+  buildWordDocxBuffer,
+} from "@/lib/proposal/document-content";
 import {
   pdfObjectPath,
   uploadProposalFile,
@@ -218,7 +221,7 @@ export async function generateDraft(
   try {
     await uploadProposalFile(
       wordPath,
-      buildMockWordContent(existing),
+      await buildWordDocxBuffer(existing),
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     );
   } catch (error) {
@@ -269,10 +272,6 @@ export async function runComplianceCheck(
     throw new Error("初稿を生成してから適合チェックを実行してください");
   }
 
-  if (existing.checklistItems.length === 0) {
-    throw new Error("採点項目がありません。チェックリストを確認してください");
-  }
-
   const complianceItems = generateMockComplianceItems(existing.checklistItems);
   const nextVersion = existing.currentWordVersion
     ? `v${Number.parseInt(existing.currentWordVersion.replace(/\D/g, ""), 10) + 1 || 2}`
@@ -282,7 +281,7 @@ export async function runComplianceCheck(
   try {
     await uploadProposalFile(
       wordPath,
-      buildMockWordContent(existing),
+      await buildWordDocxBuffer({ ...existing, currentWordVersion: nextVersion }),
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     );
   } catch (error) {
@@ -337,7 +336,7 @@ export async function generateSubmissionPdf(
   try {
     await uploadProposalFile(
       pdfPath,
-      buildMockPdfBuffer(existing.projectName),
+      await buildSubmissionPdfBuffer(existing),
       "application/pdf"
     );
   } catch (error) {

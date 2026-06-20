@@ -1,52 +1,195 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import fontkit from "@pdf-lib/fontkit";
+import {
+  Document,
+  HeadingLevel,
+  Packer,
+  Paragraph,
+  TextRun,
+} from "docx";
+import { PDFDocument, type PDFFont, rgb } from "pdf-lib";
+
 import type { ProposalCase } from "@/lib/proposal/types";
 
-export function buildMockWordContent(caseItem: ProposalCase): string {
-  const { basicInput } = caseItem;
-  return [
-    `技術提案書（学習用モック）`,
-    ``,
-    `案件名: ${basicInput.projectName}`,
-    `発注者: ${basicInput.client}`,
-    `場所: ${basicInput.location}`,
-    `工期: ${basicInput.schedule}`,
-    ``,
-    `１）提案の概要`,
-    basicInput.surveyPurpose,
-    ``,
-    `② 詳細な内容`,
-    basicInput.surveyPlanOutline,
-    ``,
-    `（Word ファイル本体の生成は未実装。Storage にテキスト形式のモックを保存しています）`,
-  ].join("\n");
+const A4_WIDTH = 595.28;
+const A4_HEIGHT = 841.89;
+const PAGE_MARGIN = 50;
+
+let cachedJapaneseFontBytes: Uint8Array | null = null;
+
+function getJapaneseFontBytes(): Uint8Array {
+  if (!cachedJapaneseFontBytes) {
+    cachedJapaneseFontBytes = readFileSync(
+      join(process.cwd(), "node_modules/@fontpkg/ip-aex-gothic/IPAexGothic.ttf")
+    );
+  }
+
+  return cachedJapaneseFontBytes;
 }
 
-/** 最小限の有効 PDF（1ページ・テキストのみ） */
-export function buildMockPdfBuffer(title: string): Buffer {
-  const text = title.replace(/[()\\]/g, "");
-  const stream = `BT /F1 14 Tf 72 720 Td (${text}) Tj ET`;
-  const streamLength = Buffer.byteLength(stream, "utf8");
+function labeledParagraph(label: string, value: string): Paragraph {
+  return new Paragraph({
+    children: [
+      new TextRun({ text: `${label}: `, bold: true }),
+      new TextRun(value.trim() || "（未入力）"),
+    ],
+  });
+}
 
-  const pdf = `%PDF-1.4
-1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj
-2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj
-3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>endobj
-4 0 obj<< /Length ${streamLength} >>stream
-${stream}
-endstream
-endobj
-5 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj
-xref
-0 6
-0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000115 00000 n 
-0000000266 00000 n 
-0000000368 00000 n 
-trailer<< /Size 6 /Root 1 0 R >>
-startxref
-449
-%%EOF`;
+function sectionHeading(text: string): Paragraph {
+  return new Paragraph({
+    text,
+    heading: HeadingLevel.HEADING_1,
+  });
+}
 
-  return Buffer.from(pdf, "utf8");
+function bodyParagraph(text: string): Paragraph {
+  return new Paragraph({
+    children: [new TextRun(text.trim() || "（未入力）")],
+  });
+}
+
+function wrapText(
+  text: string,
+  font: PDFFont,
+  fontSize: number,
+  maxWidth: number
+): string[] {
+  const lines: string[] = [];
+  let current = "";
+
+  for (const char of text) {
+    if (char === "\n") {
+      if (current) lines.push(current);
+      current = "";
+      continue;
+    }
+
+    const candidate = current + char;
+    if (font.widthOfTextAtSize(candidate, fontSize) > maxWidth && current) {
+      lines.push(current);
+      current = char;
+    } else {
+      current = candidate;
+    }
+  }
+
+  if (current) lines.push(current);
+  return lines.length > 0 ? lines : ["（未入力）"];
+}
+
+/** 案件データから Word (.docx) バイナリを生成 */
+export async function buildWordDocxBuffer(caseItem: ProposalCase): Promise<Buffer> {
+  const { basicInput } = caseItem;
+  const versionLabel = caseItem.currentWordVersion ?? "v1";
+
+  const doc = new Document({
+    sections: [
+      {
+        children: [
+          new Paragraph({
+            text: "技術提案書",
+            heading: HeadingLevel.TITLE,
+          }),
+          labeledParagraph("案件名", basicInput.projectName),
+          labeledParagraph("発注者", basicInput.client),
+          labeledParagraph("場所", basicInput.location),
+          labeledParagraph("工期", basicInput.schedule),
+          labeledParagraph("版", versionLabel),
+          sectionHeading("１）提案の概要"),
+          bodyParagraph(basicInput.surveyPurpose),
+          sectionHeading("② 詳細な内容"),
+          bodyParagraph(basicInput.surveyPlanOutline),
+          sectionHeading("既知の地質情報"),
+          bodyParagraph(basicInput.siteKnownInfo),
+        ],
+      },
+    ],
+  });
+
+  return Buffer.from(await Packer.toBuffer(doc));
+}
+
+/** 案件データから提出版 PDF バイナリを生成 */
+export async function buildSubmissionPdfBuffer(
+  caseItem: ProposalCase
+): Promise<Buffer> {
+  const { basicInput } = caseItem;
+  const pdfDoc = await PDFDocument.create();
+  pdfDoc.registerFontkit(fontkit);
+
+  const font = await pdfDoc.embedFont(getJapaneseFontBytes());
+  let page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
+
+  const maxWidth = page.getWidth() - PAGE_MARGIN * 2;
+  let y = page.getHeight() - PAGE_MARGIN;
+  const bodySize = 11;
+  const headingSize = 14;
+  const titleSize = 20;
+  const bodyLineHeight = 18;
+  const headingLineHeight = 24;
+  const titleLineHeight = 32;
+
+  function ensureSpace(needed: number): void {
+    if (y - needed >= PAGE_MARGIN) return;
+
+    page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
+    y = page.getHeight() - PAGE_MARGIN;
+  }
+
+  function drawLine(text: string, size: number, lineHeight: number): void {
+    ensureSpace(lineHeight);
+    page.drawText(text, {
+      x: PAGE_MARGIN,
+      y: y - size,
+      size,
+      font,
+      color: rgb(0, 0, 0),
+    });
+    y -= lineHeight;
+  }
+
+  function drawWrapped(text: string, size = bodySize): void {
+    for (const line of wrapText(text.trim() || "（未入力）", font, size, maxWidth)) {
+      drawLine(line, size, bodyLineHeight);
+    }
+    y -= 6;
+  }
+
+  function drawHeading(text: string): void {
+    y -= 4;
+    drawLine(text, headingSize, headingLineHeight);
+  }
+
+  function drawLabelValue(label: string, value: string): void {
+    drawWrapped(`${label}: ${value.trim() || "（未入力）"}`, bodySize);
+  }
+
+  drawLine("技術提案書（提出版）", titleSize, titleLineHeight);
+  y -= 8;
+
+  drawLabelValue("案件名", basicInput.projectName);
+  drawLabelValue("発注者", basicInput.client);
+  drawLabelValue("場所", basicInput.location);
+  drawLabelValue("工期", basicInput.schedule);
+
+  if (caseItem.managerApproval) {
+    drawLabelValue("部長承認", caseItem.managerApproval.approverName);
+  }
+  if (caseItem.directorApproval) {
+    drawLabelValue("支社長承認", caseItem.directorApproval.approverName);
+  }
+
+  drawHeading("１）提案の概要");
+  drawWrapped(basicInput.surveyPurpose);
+
+  drawHeading("② 詳細な内容");
+  drawWrapped(basicInput.surveyPlanOutline);
+
+  drawHeading("既知の地質情報");
+  drawWrapped(basicInput.siteKnownInfo);
+
+  return Buffer.from(await pdfDoc.save());
 }

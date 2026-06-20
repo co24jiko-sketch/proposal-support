@@ -1,6 +1,6 @@
 # 技術提案書サポート — 次回再開用メモ
 
-最終更新: 2026-06-20（Phase 1 認証実装・通し確認完了）
+最終更新: 2026-06-20（Phase 2 Word/PDF 実ファイル生成・ローカル通し確認完了）
 
 ## クイックスタート
 
@@ -33,8 +33,8 @@ npm run dev
 | 新規案件 | http://localhost:3000/proposal/cases/new |
 | 案件詳細（DB・編集中） | http://localhost:3000/proposal/cases/04c8f8ca-6b22-4c3d-bb21-2c37e6397542?tab=draft |
 | 案件詳細（モック） | http://localhost:3000/proposal/cases/case-1?tab=draft |
-| 承認待ち（部長） | ヘッダーでロールを「部長」に切替 → 案件一覧 |
-| 承認済み（PDF可） | http://localhost:3000/proposal/cases/case-3?tab=approval |
+| 承認待ち（部長） | 部長アカウントでログイン → 案件一覧 |
+| 承認済み（PDF可） | 担当者でログイン → 承認タブ → PDF 出力 |
 
 ## モック案件（3件）
 
@@ -54,7 +54,7 @@ npm run dev
 - **Step 3 完了**（新規案件の保存→一覧表示→リロードで残ることを API で確認済み）
 - チェックリスト確定・承認フロー（申請/承認/差戻し）は DB 連携済み
 - **Supabase SQL 2本実行済み**（`add_case_detail_fields.sql` + `add_storage.sql`）
-- PDF/Word は **Supabase Storage にモック保存**（実 .docx / 本番 PDF は未実装）
+- PDF/Word は **Supabase Storage に実ファイル保存**（`docx` / `pdf-lib` + 日本語フォント）
 - **保存場所の整理:** DB（Supabase）＝案件データ / GitHub＝コード / Storage＝ファイル
 
 ## 2026-06-04 までに実装したUI改善
@@ -196,9 +196,9 @@ npx --yes surge <一時フォルダ> --domain diagram-proposal-tool-concept.surg
 
 | Phase | 内容 | 状態 |
 |---|---|---|
-| 1 | 認証・権限・RLS | **コード実装済み**（要: Supabase SQL + Auth ユーザー作成） |
-| 2 | Word/PDF 実ファイル生成 | 未着手 |
-| 3 | 適合チェック本実装 | 未着手 |
+| 1 | 認証・権限・RLS | ✅ 完了（Supabase + ローカル/Vercel 確認済み） |
+| 2 | Word/PDF 実ファイル生成 | ✅ **ローカル完了**（要: push → Vercel Redeploy） |
+| 3 | 適合チェック本実装 | 未着手（現状はモック。採点項目0件はスキップ扱い可） |
 | 4 | パイロット運用（監査ログ等） | 未着手 |
 
 ### Phase 1 — 認証（2026-06-20 実装）
@@ -246,9 +246,27 @@ where assignee_id is null;
 
 ## 次回やること（優先度順）
 
-1. **Phase 1 仕上げ（Supabase 側）** — 上記 SQL 実行 + パイロットユーザー作成 + push/Redeploy
-2. **Phase 2** — Word/PDF 実ファイル生成
-3. 外観の修正・図解更新（いつでも可）
+1. **Phase 2 公開** — `git push github main` → Vercel Redeploy → 公開サイトで Word/PDF 確認
+2. **Phase 3** — 適合チェック本実装（入札図書 PDF からの採点項目抽出）
+3. **Phase 4** — 監査ログ・版履歴の DB 永続化
+4. 外観の修正・図解更新（いつでも可）
+
+### パイロット用アカウント
+
+| ロール | メール | パスワード |
+|---|---|---|
+| 部長 | `manager@pilot.local` | `PilotManager2026` |
+| 支社長 | `director@pilot.local` | `PilotDirector2026` |
+
+※ 支社長ログイン失敗時: Dashboard でユーザーを削除→再作成（Auto Confirm）→ SQL で `role = 'director'` を設定。`Send password recovery` はメール rate limit で失敗することがある。
+
+### 承認〜PDF の流れ（担当者視点）
+
+1. チェックリスト確定 → 文案タブで初稿生成
+2. 文案タブ **「再取込して適合チェックへ」**
+3. **適合チェック**タブ **「承認を申請する」**（△×ありは理由必須）
+4. 部長 → 支社長が各アカウントで **承認**タブから承認
+5. 担当者で **承認**タブ **「提出版 PDF を出力」**
 
 ### DB 案件の開き方（UUID は画面に出ない）
 
@@ -258,8 +276,8 @@ where assignee_id is null;
 
 ### 適合チェックを試すとき
 
-- 採点項目が必要 → **新規案件**で「サンプル採点項目を追加」してから確定
-- 確定済み案件（テスト地質調査）は採点項目追加不可 → 新規案件を使う
+- 採点項目あり → サンプル追加または PDF 抽出（未実装）後に確定
+- 採点項目 **0 件** でも確定→初稿→再取込→適合チェック→承認申請まで可能（スキップ扱いの ○1 件が付く）
 
 ### Supabase SQL 実行手順（✅ 2026-06-13 実行済み）
 
@@ -288,11 +306,11 @@ where assignee_id is null;
 |---|---|---|
 | 案件の基本情報 | DB 保存済み | — |
 | チェックリスト確定 | DB 保存済み | 採点項目の PDF 抽出（サンプル追加は DB 保存済み） |
-| 文案・Word | Storage にモック Word 保存 + DL | 実 .docx 生成 |
-| 適合チェック | DB 保存済み・通し確認 OK | 実 PDF 抽出（将来） |
+| 文案・Word | Storage に実 .docx 保存 + DL | — |
+| 適合チェック | DB 保存済み・モック判定 | 実 PDF 抽出（Phase 3） |
 | 承認フロー | DB 保存済み・通し確認 OK | — |
-| PDF 出力 | Storage モック + DL 確認 OK | 本番 PDF 生成 |
-| 公開 | Vercel 通し確認 OK（`090206b` デプロイ） | 未コミット変更の push（任意） |
+| PDF 出力 | Storage 実 PDF + DL 確認 OK | — |
+| 公開 | Vercel 通し確認 OK（`d136cf9`） | Phase 2 コードの push & Redeploy |
 
 ## 再開手順（自分で始める場合）
 
@@ -330,6 +348,15 @@ npm run dev も起動してください。
 ```
 
 ## 作業終了時メモ
+
+### 2026-06-20（Phase 2 Word/PDF 実ファイル生成）
+
+- **Word** — `docx` で `.docx` 生成（ローカル確認: 8.92 KB、入力内容一致）
+- **PDF** — `pdf-lib` + `@fontpkg/ip-aex-gothic`（ローカル確認: 4.0 MB、日本語表示 OK）
+- **UX** — 採点項目 0 件でも適合チェック→承認申請可能に修正
+- **承認フロー** — 新規案件で部長→支社長承認→PDF 出力まで通し確認 OK
+- **Supabase** — 支社長ユーザー再作成 + ロール SQL（password recovery rate limit 回避）
+- **次:** `git push github main` → Vercel Redeploy → 公開サイト確認
 
 ### 2026-06-20（Phase 1 認証実装）
 
