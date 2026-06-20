@@ -197,7 +197,7 @@ npx --yes surge <一時フォルダ> --domain diagram-proposal-tool-concept.surg
 | Phase | 内容 | 状態 |
 |---|---|---|
 | 1 | 認証・権限・RLS | ✅ 完了（Supabase + ローカル/Vercel 確認済み） |
-| 2 | Word/PDF 実ファイル生成 | ✅ **ローカル完了**（要: push → Vercel Redeploy） |
+| 2 | Word/PDF 実ファイル生成 | ✅ 完了（ローカル + Vercel 確認済み） |
 | 3 | 適合チェック本実装 | 未着手（現状はモック。採点項目0件はスキップ扱い可） |
 | 4 | パイロット運用（監査ログ等） | 未着手 |
 
@@ -310,7 +310,7 @@ where assignee_id is null;
 | 適合チェック | DB 保存済み・モック判定 | 実 PDF 抽出（Phase 3） |
 | 承認フロー | DB 保存済み・通し確認 OK | — |
 | PDF 出力 | Storage 実 PDF + DL 確認 OK | — |
-| 公開 | Vercel 通し確認 OK（`d136cf9`） | Phase 2 コードの push & Redeploy |
+| 公開 | Vercel 通し確認 OK（`e99d17f`） | — |
 
 ## 再開手順（自分で始める場合）
 
@@ -334,20 +334,38 @@ npm run dev
 C:\Users\haram\src\workspace-ui-kit\docs\proposal-RESUME.md を読んで、
 技術提案書サポートの続きを進めてください。
 
-【完了済み】
-- Supabase SQL 2本実行済み、GitHub push 済み（090206b）
-- ローカル確認: テスト地質調査で確定→初稿生成→F5 永続化 OK
-- Storage に Word モック保存 OK
+【完了済み（2026-06-20）】
+- Phase 1 認証: Supabase 設定・3ロール・RLS 完了
+- Phase 2 Word/PDF: 実 .docx / 実 PDF（日本語）生成・Storage 保存・DL 完了
+  - Word 約 9KB / PDF 約 4MB（日本語フォント同梱）
+  - Vercel 公開サイトで PDF 生成・DL・日本語ファイル名 OK
+- GitHub push 済み: e99d17f（git push github main）
+- 採点項目 0 件でも適合チェック→承認申請可能（スキップ扱い）
+- 公開: https://proposal-support.vercel.app/proposal/login
 
-【次の作業】
-1. 新規案件で適合チェック〜承認〜PDF の通し確認（F5 永続化）
-2. Vercel 公開サイト（proposal-support.vercel.app）の動作確認
-3. Word ダウンロードの確認（任意）
+【パイロット用アカウント】
+- 部長: manager@pilot.local / PilotManager2026
+- 支社長: director@pilot.local / PilotDirector2026
+- ※ 支社長ログイン失敗時: Dashboard でユーザー再作成 → SQL で role=director
 
-npm run dev も起動してください。
+【次の作業（優先度順）】
+1. Phase 3: 適合チェック本実装（入札 PDF から採点項目抽出）
+2. Phase 4: 監査ログ・版履歴の DB 永続化
+3. パイロット準備（運用手順・図解更新など）
+
+【進め方の希望】
+手順は1つずつ指示して、できたか確認してから次に進めてください。
+npm run dev が止まっていたら起動してください（3000 固まり時は古いプロセスを止めてから）。
 ```
 
 ## 作業終了時メモ
+
+### 2026-06-20（Phase 2 完成・作業一時終了）
+
+- **Vercel PDF** — フォント同梱 + 署名付き URL DL（`46c4b6a`）→ 公開サイトで PDF 出力 OK
+- **PDF ファイル名** — 日本語文字化け修正（Blob DL、`e99d17f`）→ `案件名-submission.pdf` OK
+- **Phase 2 完了** — Word/PDF 実ファイル、ローカル + Vercel 通し確認済み
+- **次回:** Phase 3（適合チェック本実装）または Phase 4（監査ログ）
 
 ### 2026-06-20（Phase 2 Word/PDF 実ファイル生成）
 
