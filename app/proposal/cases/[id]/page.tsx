@@ -22,7 +22,7 @@ function CaseDetailFallback() {
 export default async function CaseDetailRoute({ params }: PageProps) {
   const { id } = await params;
   const caseItem =
-    (await getProposalCaseById(id)) ?? getMockCaseById(id);
+    (await getProposalCaseById(id, { includeHistory: true })) ?? getMockCaseById(id);
 
   if (!caseItem) {
     notFound();

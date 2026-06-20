@@ -52,3 +52,24 @@ export interface ProposalCaseRow {
   created_at: string;
   updated_at: string;
 }
+
+export interface ProposalCaseVersionRow {
+  id: string;
+  case_id: string;
+  label: string;
+  action: string;
+  file_path?: string | null;
+  created_by: string;
+  created_by_name: string;
+  created_at: string;
+}
+
+export interface ProposalAuditLogRow {
+  id: string;
+  case_id: string;
+  action: string;
+  detail?: string | null;
+  user_id: string;
+  user_name: string;
+  created_at: string;
+}

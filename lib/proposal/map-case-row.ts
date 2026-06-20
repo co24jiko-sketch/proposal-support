@@ -1,7 +1,9 @@
 import type { ProposalCaseRow } from "@/lib/supabase/types";
 import type {
   ApprovalRecord,
+  AuditLogEntry,
   CaseStatus,
+  CaseVersion,
   ChecklistItem,
   ComplianceItem,
   ProposalCase,
@@ -72,7 +74,10 @@ function isChecklistConfirmed(row: ProposalCaseRow): boolean {
   return CHECKLIST_CONFIRMED_STATUSES.includes(row.status as CaseStatus);
 }
 
-export function rowToProposalCase(row: ProposalCaseRow): ProposalCase {
+export function rowToProposalCase(
+  row: ProposalCaseRow,
+  history?: { versions: CaseVersion[]; auditLog: AuditLogEntry[] }
+): ProposalCase {
   return {
     id: row.id,
     projectName: row.project_name,
@@ -106,8 +111,8 @@ export function rowToProposalCase(row: ProposalCaseRow): ProposalCase {
     ),
     approvalRequestReason: row.approval_request_reason ?? undefined,
     returnReason: row.return_reason ?? undefined,
-    versions: [],
-    auditLog: [],
+    versions: history?.versions ?? [],
+    auditLog: history?.auditLog ?? [],
     referencedLibraryIds: [],
     currentWordVersion: row.current_word_version ?? undefined,
     wordFilePath: row.word_file_path ?? undefined,

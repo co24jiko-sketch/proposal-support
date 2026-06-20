@@ -5,6 +5,15 @@ import {
   canReturnCase,
 } from "@/lib/proposal/auth";
 import {
+  isPdfUpload,
+  MAX_BID_PDF_BYTES,
+} from "@/lib/proposal/bid-document-limits";
+import {
+  fetchCaseHistory,
+  recordAuditLog,
+  recordCaseVersion,
+} from "@/lib/proposal/case-history";
+import {
   buildSubmissionPdfBuffer,
   buildWordDocxBuffer,
 } from "@/lib/proposal/document-content";
@@ -59,7 +68,8 @@ export async function listProposalCases(): Promise<ProposalCase[]> {
 }
 
 export async function getProposalCaseById(
-  id: string
+  id: string,
+  options?: { includeHistory?: boolean }
 ): Promise<ProposalCase | null> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
@@ -74,7 +84,12 @@ export async function getProposalCaseById(
 
   if (!data) return null;
 
-  return rowToProposalCase(data as ProposalCaseRow);
+  if (!options?.includeHistory) {
+    return rowToProposalCase(data as ProposalCaseRow);
+  }
+
+  const history = await fetchCaseHistory(id);
+  return rowToProposalCase(data as ProposalCaseRow, history);
 }
 
 export async function createProposalCase(
@@ -102,6 +117,8 @@ export async function createProposalCase(
   if (error) {
     throw new Error(`案件の作成に失敗しました: ${error.message}`);
   }
+
+  await recordAuditLog(data.id, auth, "案件作成", input.projectName);
 
   return rowToProposalCase(data as ProposalCaseRow);
 }
@@ -136,6 +153,8 @@ export async function confirmChecklist(
   if (error) {
     throw new Error(`チェックリストの確定に失敗しました: ${error.message}`);
   }
+
+  await recordAuditLog(id, auth, "チェックリスト確定");
 
   return rowToProposalCase(data as ProposalCaseRow);
 }
@@ -282,10 +301,10 @@ export async function applyScoringTemplate(
     throw new Error(`採点項目の保存に失敗しました: ${error.message}`);
   }
 
+  await recordAuditLog(id, auth, "採点基準適用", template.name);
+
   return rowToProposalCase(data as ProposalCaseRow);
 }
-
-const MAX_BID_PDF_BYTES = 20 * 1024 * 1024;
 
 export async function uploadBidDocument(
   auth: AuthContext,
@@ -304,12 +323,12 @@ export async function uploadBidDocument(
     throw new Error("確定済みのチェックリストがあるため入札図書は変更できません");
   }
 
-  if (!file.name.toLowerCase().endsWith(".pdf")) {
+  if (!isPdfUpload(file)) {
     throw new Error("入札図書は PDF ファイルのみアップロードできます");
   }
 
   if (file.buffer.byteLength > MAX_BID_PDF_BYTES) {
-    throw new Error("入札図書 PDF は 20MB 以下にしてください");
+    throw new Error("入札図書 PDF は 4MB 以下にしてください");
   }
 
   const bidPath = bidObjectPath(id);
@@ -340,6 +359,8 @@ export async function uploadBidDocument(
   if (error) {
     throw new Error(`入札図書の保存に失敗しました: ${error.message}`);
   }
+
+  await recordAuditLog(id, auth, "入札図書アップロード", file.name);
 
   return rowToProposalCase(data as ProposalCaseRow);
 }
@@ -396,6 +417,9 @@ export async function generateDraft(
   if (error) {
     throw new Error(`初稿生成の保存に失敗しました: ${error.message}`);
   }
+
+  await recordAuditLog(id, auth, "初稿生成");
+  await recordCaseVersion(id, auth, version, "初稿生成", wordPath);
 
   return rowToProposalCase(data as ProposalCaseRow);
 }
@@ -475,6 +499,9 @@ export async function runComplianceCheck(
     throw new Error(`適合チェック結果の保存に失敗しました: ${error.message}`);
   }
 
+  await recordAuditLog(id, auth, "適合チェック実行", `Word ${nextVersion}`);
+  await recordCaseVersion(id, auth, nextVersion, "適合チェック", wordPath);
+
   return rowToProposalCase(data as ProposalCaseRow);
 }
 
@@ -525,6 +552,8 @@ export async function generateSubmissionPdf(
     throw new Error(`PDF 出力の保存に失敗しました: ${error.message}`);
   }
 
+  await recordAuditLog(id, auth, "PDF出力");
+
   return rowToProposalCase(data as ProposalCaseRow);
 }
 
@@ -560,6 +589,8 @@ export async function requestApproval(
   if (error) {
     throw new Error(`承認申請に失敗しました: ${error.message}`);
   }
+
+  await recordAuditLog(id, auth, "承認申請", reason?.trim() || undefined);
 
   return rowToProposalCase(data as ProposalCaseRow);
 }
@@ -602,6 +633,8 @@ export async function approveCase(
       throw new Error(`部長承認に失敗しました: ${error.message}`);
     }
 
+    await recordAuditLog(id, auth, "部長承認", trimmedComment ?? undefined);
+
     return rowToProposalCase(data as ProposalCaseRow);
   }
 
@@ -625,6 +658,8 @@ export async function approveCase(
   if (error) {
     throw new Error(`支社長承認に失敗しました: ${error.message}`);
   }
+
+  await recordAuditLog(id, auth, "支社長承認", trimmedComment ?? undefined);
 
   return rowToProposalCase(data as ProposalCaseRow);
 }
@@ -663,6 +698,8 @@ export async function returnCase(
   if (error) {
     throw new Error(`差し戻しに失敗しました: ${error.message}`);
   }
+
+  await recordAuditLog(id, auth, "差戻し", trimmedReason);
 
   return rowToProposalCase(data as ProposalCaseRow);
 }

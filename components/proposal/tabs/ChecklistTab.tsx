@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/table";
 import type { ProposalCase } from "@/lib/proposal/types";
 import { SCORING_TEMPLATES } from "@/lib/proposal/scoring-templates";
+import { MAX_BID_PDF_BYTES, isPdfUpload } from "@/lib/proposal/bid-document-limits";
 import { isDbCase } from "@/lib/proposal/utils";
 import { cn } from "@/lib/utils";
 
@@ -71,6 +72,19 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
   async function handleBidUpload(file: File) {
     if (!isDbCase(caseItem.id)) return;
 
+    const isPdf = isPdfUpload(file);
+    if (!isPdf) {
+      setErrorMessage(
+        "入札図書は PDF ファイル（.pdf）のみアップロードできます"
+      );
+      return;
+    }
+
+    if (file.size > MAX_BID_PDF_BYTES) {
+      setErrorMessage("入札図書 PDF は 4MB 以下にしてください");
+      return;
+    }
+
     setErrorMessage(null);
     setIsUploadingBid(true);
 
@@ -84,6 +98,9 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
       );
 
       if (!response.ok) {
+        if (response.status === 413) {
+          throw new Error("入札図書 PDF は 4MB 以下にしてください");
+        }
         const body = (await response.json().catch(() => null)) as {
           error?: string;
         } | null;
@@ -241,6 +258,11 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
           </div>
           {getUploadDisabledReason() && (
             <p className="text-xs text-amber-700">{getUploadDisabledReason()}</p>
+          )}
+          {!uploadDisabled && (
+            <p className="text-xs text-muted-foreground">
+              PDF・4MB 以下。ログイン中のユーザーが作成した案件のみアップロードできます。
+            </p>
           )}
           {errorMessage && (
             <p className="text-sm text-red-600">{errorMessage}</p>
