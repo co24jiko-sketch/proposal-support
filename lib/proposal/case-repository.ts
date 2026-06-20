@@ -64,7 +64,7 @@ export async function listProposalCases(): Promise<ProposalCase[]> {
     throw new Error(`案件一覧の取得に失敗しました: ${error.message}`);
   }
 
-  return (data as ProposalCaseRow[]).map(rowToProposalCase);
+  return (data as ProposalCaseRow[]).map((row) => rowToProposalCase(row));
 }
 
 export async function getProposalCaseById(
