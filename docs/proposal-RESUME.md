@@ -1,6 +1,6 @@
 # 技術提案書サポート — 次回再開用メモ
 
-最終更新: 2026-06-13（Storage 実装・push 待ち / Supabase SQL 2本要実行）
+最終更新: 2026-06-20（Phase 1 認証実装・通し確認完了）
 
 ## クイックスタート
 
@@ -31,7 +31,8 @@ npm run dev
 |---|---|
 | 案件一覧 | http://localhost:3000/proposal |
 | 新規案件 | http://localhost:3000/proposal/cases/new |
-| 案件詳細（編集中） | http://localhost:3000/proposal/cases/case-1?tab=draft |
+| 案件詳細（DB・編集中） | http://localhost:3000/proposal/cases/04c8f8ca-6b22-4c3d-bb21-2c37e6397542?tab=draft |
+| 案件詳細（モック） | http://localhost:3000/proposal/cases/case-1?tab=draft |
 | 承認待ち（部長） | ヘッダーでロールを「部長」に切替 → 案件一覧 |
 | 承認済み（PDF可） | http://localhost:3000/proposal/cases/case-3?tab=approval |
 
@@ -52,9 +53,8 @@ npm run dev
 - **Supabase 連携（Step 2 完了）** — `proposal_cases` テーブル、`.env.local` 設定済み
 - **Step 3 完了**（新規案件の保存→一覧表示→リロードで残ることを API で確認済み）
 - チェックリスト確定・承認フロー（申請/承認/差戻し）は DB 連携済み
-- 採点項目・適合チェック結果の DB 保存は **コード実装済み**
-- **Supabase SQL 2本が未実行**（下記「SQL 実行手順」参照）
-- PDF/Word は **Supabase Storage にモック保存**（実ファイル生成は簡易版）
+- **Supabase SQL 2本実行済み**（`add_case_detail_fields.sql` + `add_storage.sql`）
+- PDF/Word は **Supabase Storage にモック保存**（実 .docx / 本番 PDF は未実装）
 - **保存場所の整理:** DB（Supabase）＝案件データ / GitHub＝コード / Storage＝ファイル
 
 ## 2026-06-04 までに実装したUI改善
@@ -136,6 +136,23 @@ npx --yes surge <一時フォルダ> --domain diagram-proposal-tool-concept.surg
 - ブラウザ確認済み: 確定 → 文案タブ遷移 → F5 後も「確定済」が残る
 - DB: `checklist_confirmed = true`, `status = ready_to_generate`
 
+### 案件詳細 DB 化 + Storage（2026-06-13 ローカル確認済み）
+
+- Supabase SQL 実行済み: `add_case_detail_fields.sql`, `add_storage.sql`
+- **確認済み案件:** `04c8f8ca-6b22-4c3d-bb21-2c37e6397542`（テスト地質調査）
+  - チェックリスト確定（採点項目 0件のまま）→ 初稿生成 → F5 後も残る ✅
+  - `generated_sections` 全 true、`status=editing`
+  - Storage: `cases/.../proposal-v1.docx` 保存済み
+- **通し確認済み（2026-06-20）:** 新規案件 `48acaa1a-5f3e-483c-90c1-61ef21564b83`（通し確認テスト）
+  - 採点項目4件 → 確定 → 初稿(v1) → 適合(v2, compliance 4件) → 承認申請 → 部長/支社長承認 → PDF → 一覧再取得で永続化 OK
+  - Word DL: 377 bytes / PDF DL: 600 bytes（モック）
+- GitHub push 済み: `090206b`
+
+追加 API（Storage 含む）:
+  - `POST .../seed-checklist` / `generate-draft` / `run-compliance`
+  - `GET .../download-word` / `download-pdf`
+  - `POST .../generate-pdf`
+
 ### 案件詳細 DB 化（2026-06-12 実装）
 
 - Supabase SQL: `supabase/add_case_detail_fields.sql` を **SQL Editor で実行**（未実行だと API が 500）
@@ -175,53 +192,78 @@ npx --yes surge <一時フォルダ> --domain diagram-proposal-tool-concept.surg
 
 **Git push の注意:** GitHub へ push するときは `git push github main`（`origin` ではない。`origin` は Gitea で、push 時にサインイン画面が開くことがある→閉じて OK）
 
+## 完成品化ロードマップ
+
+| Phase | 内容 | 状態 |
+|---|---|---|
+| 1 | 認証・権限・RLS | **コード実装済み**（要: Supabase SQL + Auth ユーザー作成） |
+| 2 | Word/PDF 実ファイル生成 | 未着手 |
+| 3 | 適合チェック本実装 | 未着手 |
+| 4 | パイロット運用（監査ログ等） | 未着手 |
+
+### Phase 1 — 認証（2026-06-20 実装）
+
+**コード側（完了）**
+- ログイン `/proposal/login`（メール + パスワード）
+- Middleware で `/proposal/*` `/api/proposal/*` を保護
+- ヘッダーのロール切替を廃止 → ログインユーザーの role 表示
+- API はセッション必須。承認/差戻しは **サーバー側の role** で判定（クライアント送信不可）
+- 新規案件は `assignee_id` = ログインユーザー
+
+**Supabase で実行すること（必須）**
+
+1. **Authentication → Providers → Email** を ON
+2. **SQL Editor** で `supabase/add_auth_profiles.sql` を実行
+3. **Authentication → Users** でパイロットユーザーを作成（3〜4人）
+4. プロフィールのロール設定（SQL 例）:
+
+```sql
+-- UUID は Dashboard → Authentication → Users で確認
+update public.proposal_profiles
+set role = 'manager', display_name = '部長 高橋'
+where id = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
+
+update public.proposal_profiles
+set role = 'director', display_name = '支社長 伊藤'
+where id = 'yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy';
+```
+
+5. 既存案件を編集可能にする場合（任意）:
+
+```sql
+update public.proposal_cases
+set assignee_id = '担当者ユーザーの UUID'
+where assignee_id is null;
+```
+
+6. **GitHub push → Vercel Redeploy**（環境変数は既存のまま）
+
+**Phase 1 完了の確認**
+- 未ログインで `/proposal` → ログイン画面へリダイレクト
+- 担当者でログイン → 部長承認ボタンが出ない
+- 部長でログイン → 承認待ち案件のみ承認可
+- `/api/proposal/cases` 直叩き → 401
+
 ## 次回やること（優先度順）
 
-教材 Step 1〜5 は完了。DB 連携フェーズの進捗:
+1. **Phase 1 仕上げ（Supabase 側）** — 上記 SQL 実行 + パイロットユーザー作成 + push/Redeploy
+2. **Phase 2** — Word/PDF 実ファイル生成
+3. 外観の修正・図解更新（いつでも可）
 
-1. ~~**チェックリスト確定**~~ ✅ 完了
-2. ~~**承認フロー（承認・差戻し）**~~ ✅ 完了
-3. ~~**Vercel 公開サイトの最終確認**~~ ✅ 2026-06-12 確認（一覧 API 応答・案件データ取得 OK）
-4. **Supabase SQL 実行 → 動作確認 → push** ← **次に最初にやること**
-   - `supabase/add_case_detail_fields.sql` を実行
-   - `supabase/add_storage.sql` を実行
-   - ローカルで採点項目追加 → 初稿生成 → Word DL → 適合チェック → F5 確認
-   - `git push github main` → Vercel Redeploy
-5. ~~PDF / Word 生成（Supabase Storage 等）~~ ✅ モック版実装済み（SQL 実行後に動作）
-6. 外観の修正（いつでも可）
-7. 図解の更新・再公開
+### DB 案件の開き方（UUID は画面に出ない）
 
-### Supabase SQL 実行手順（必須・未実行だと API が 500）
+- 案件一覧 http://localhost:3000/proposal で **工事名の行をクリック**
+- 一覧に出ている案件はすべて DB 案件（例: テスト地質調査、A地区地質調査業務）
+- UUID は URL バーにのみ表示（例: `/cases/04c8f8ca-...`）
 
-1. https://supabase.com → プロジェクト `proposal-support-dev` → **SQL Editor**
-2. **New query** → 以下を **この順番で** 貼り付け → **Run**
+### 適合チェックを試すとき
 
-**① 案件詳細カラム** — `supabase/add_case_detail_fields.sql`
+- 採点項目が必要 → **新規案件**で「サンプル採点項目を追加」してから確定
+- 確定済み案件（テスト地質調査）は採点項目追加不可 → 新規案件を使う
 
-**② Storage + ファイルパス** — `supabase/add_storage.sql`
+### Supabase SQL 実行手順（✅ 2026-06-13 実行済み）
 
-3. 実行後、Table Editor で `proposal_cases` に `checklist_items` 列があることを確認
-4. Storage メニューに `proposal-files` バケットがあることを確認
-
-### 未コミット・未 push の変更（2026-06-12 時点）
-
-ローカルに変更あり。**GitHub / Vercel にはまだ反映されていない。**
-
-主な追加・変更:
-- `supabase/add_case_detail_fields.sql`
-- `app/api/proposal/cases/[id]/seed-checklist/` ほか API 3本
-- `lib/proposal/sample-checklist.ts`, `compliance-mock.ts`
-- `ChecklistTab.tsx`, `DraftTab.tsx`, `ComplianceTab.tsx`
-- セッション用: `docs/proposal-storage-slide.png`, `proposal-storage-explainer.*`
-
-### 案件詳細 DB 化 — ローカル確認手順（SQL 実行後）
-
-1. `npm run dev` → http://localhost:3000/proposal
-2. DB 案件を開く（例: `checklistConfirmed: false` の案件）
-3. チェックリストタブ →「サンプル採点項目を追加」→ 確定
-4. 文案タブ →「初稿を一括生成」
-5. 「再取込して適合チェックへ」→ 適合結果表示
-6. **F5** → 採点項目・適合結果が残っていること
+参考: `supabase/add_case_detail_fields.sql` → `supabase/add_storage.sql`
 
 ### 第4回グループセッション（2026-06-12 準備済み）
 
@@ -247,10 +289,10 @@ npx --yes surge <一時フォルダ> --domain diagram-proposal-tool-concept.surg
 | 案件の基本情報 | DB 保存済み | — |
 | チェックリスト確定 | DB 保存済み | 採点項目の PDF 抽出（サンプル追加は DB 保存済み） |
 | 文案・Word | Storage にモック Word 保存 + DL | 実 .docx 生成 |
-| 適合チェック | チェック結果を DB 保存（モック） | 実 Word 解析 |
-| 承認フロー | DB 保存済み | — |
-| PDF 出力 | Storage にモック PDF 保存 + DL | 本番品質 PDF |
-| 公開 | push 後 Vercel Redeploy 要 | デプロイ後の動作確認 |
+| 適合チェック | DB 保存済み・通し確認 OK | 実 PDF 抽出（将来） |
+| 承認フロー | DB 保存済み・通し確認 OK | — |
+| PDF 出力 | Storage モック + DL 確認 OK | 本番 PDF 生成 |
+| 公開 | Vercel 通し確認 OK（`090206b` デプロイ） | 未コミット変更の push（任意） |
 
 ## 再開手順（自分で始める場合）
 
@@ -275,21 +317,49 @@ C:\Users\haram\src\workspace-ui-kit\docs\proposal-RESUME.md を読んで、
 技術提案書サポートの続きを進めてください。
 
 【完了済み】
-- 教材 Step 1〜5、チェックリスト確定、承認フロー DB 保存
-- 案件詳細 DB 化 + Storage（Word/PDF モック）のコード実装
-- 第4回セッション用説明資料
+- Supabase SQL 2本実行済み、GitHub push 済み（090206b）
+- ローカル確認: テスト地質調査で確定→初稿生成→F5 永続化 OK
+- Storage に Word モック保存 OK
 
 【次の作業】
-1. Supabase SQL 2本の実行済み確認（未なら案内）
-2. ローカル動作確認（F5 永続化・Word/PDF DL）
-3. 必要なら git push github main → Vercel Redeploy
+1. 新規案件で適合チェック〜承認〜PDF の通し確認（F5 永続化）
+2. Vercel 公開サイト（proposal-support.vercel.app）の動作確認
+3. Word ダウンロードの確認（任意）
 
 npm run dev も起動してください。
 ```
 
 ## 作業終了時メモ
 
-### 2026-06-13（作業）
+### 2026-06-20（Phase 1 認証実装）
+
+- **認証基盤** — `@supabase/ssr`、Middleware、ログインページ、API セッション検証
+- **RLS 用 SQL** — `supabase/add_auth_profiles.sql`（profiles / assignee_id / Storage 非公開）
+- **UI** — ロール切替廃止、ログアウト、ユーザー名表示
+- **要ユーザー作業** — Supabase で Email Auth ON + SQL 実行 + ユーザー作成 + ロール設定 + push
+
+### 2026-06-20（通し確認完了）
+
+- **dev サーバー起動** — http://localhost:3000/proposal
+- **ローカル通し確認（API）** — 案件 `48acaa1a-5f3e-483c-90c1-61ef21564b83`
+  - seed-checklist → confirm → generate-draft → run-compliance → request-approval → approve×2 → generate-pdf
+  - 一覧再取得で `status=approved`, `complianceItems=4`, `pdfFilePath` 残存 OK
+  - Word/PDF DL: HTTP 200
+- **Vercel 通し確認（API）** — 案件 `8363baad-a4a5-4ec3-903b-f4eac85ee130`
+  - 同上フロー全ステップ OK / Word 320 bytes / PDF 597 bytes
+  - 公開 URL: https://proposal-support.vercel.app/proposal/cases/8363baad-a4a5-4ec3-903b-f4eac85ee130?tab=approval
+- **ローカル未コミット変更あり** — `download-*`, `file-storage`, `document-content`, `add_storage.sql`, 本ファイル
+- **次回（任意）:** ブラウザ UI での目視確認、未コミット変更の整理・`git push github main`
+
+### 2026-06-13（作業一時終了）
+
+- **Supabase SQL 2本実行** — ユーザー実施、`checklist_items` 列・`proposal-files` バケット OK
+- **ローカル確認** — テスト地質調査（`04c8f8ca-...`）: 確定→初稿生成→F5 OK、Word Storage 保存 OK
+- 採点項目はスキップ（0件のまま確定）
+- GitHub push 済み: `090206b`
+- **次回:** 新規案件で適合〜承認〜PDF 通し確認、Vercel 確認
+
+### 2026-06-13（開発・push）
 
 - **Supabase SQL 未実行を確認** — `checklist_items` 列なし（要: SQL 2本）
 - **Storage 実装** — Word/PDF を `proposal-files` バケットにモック保存

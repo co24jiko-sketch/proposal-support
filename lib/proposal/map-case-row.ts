@@ -78,7 +78,7 @@ export function rowToProposalCase(row: ProposalCaseRow): ProposalCase {
     projectName: row.project_name,
     client: row.client,
     assigneeName: row.assignee_name,
-    assigneeId: "user-yamada",
+    assigneeId: row.assignee_id ?? "",
     status: row.status as CaseStatus,
     formType: row.form_type,
     updatedAt: formatDate(row.updated_at),

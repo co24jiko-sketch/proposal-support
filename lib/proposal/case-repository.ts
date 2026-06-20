@@ -1,3 +1,9 @@
+import {
+  type AuthContext,
+  canApproveCase,
+  canManageCase,
+  canReturnCase,
+} from "@/lib/proposal/auth";
 import { buildMockPdfBuffer, buildMockWordContent } from "@/lib/proposal/document-content";
 import {
   pdfObjectPath,
@@ -7,18 +13,9 @@ import {
 import { generateMockComplianceItems } from "@/lib/proposal/compliance-mock";
 import { rowToProposalCase } from "@/lib/proposal/map-case-row";
 import { SAMPLE_CHECKLIST_ITEMS } from "@/lib/proposal/sample-checklist";
-import type {
-  ChecklistItem,
-  ProposalCase,
-  UserRole,
-} from "@/lib/proposal/types";
+import type { ChecklistItem, ProposalCase } from "@/lib/proposal/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ProposalCaseRow } from "@/lib/supabase/types";
-
-const APPROVER_NAMES: Record<"manager" | "director", string> = {
-  manager: "部長 高橋",
-  director: "支社長 伊藤",
-};
 
 export type CreateProposalCaseInput = {
   projectName: string;
@@ -30,8 +27,14 @@ export type CreateProposalCaseInput = {
   surveyPlanOutline: string;
 };
 
+function assertCanManageCase(auth: AuthContext, caseItem: ProposalCase): void {
+  if (!canManageCase(auth, caseItem.assigneeId || null)) {
+    throw new Error("この案件を操作する権限がありません");
+  }
+}
+
 export async function listProposalCases(): Promise<ProposalCase[]> {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("proposal_cases")
     .select("*")
@@ -47,7 +50,7 @@ export async function listProposalCases(): Promise<ProposalCase[]> {
 export async function getProposalCaseById(
   id: string
 ): Promise<ProposalCase | null> {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("proposal_cases")
     .select("*")
@@ -64,9 +67,10 @@ export async function getProposalCaseById(
 }
 
 export async function createProposalCase(
+  auth: AuthContext,
   input: CreateProposalCaseInput
 ): Promise<ProposalCase> {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("proposal_cases")
     .insert({
@@ -77,7 +81,8 @@ export async function createProposalCase(
       survey_purpose: input.surveyPurpose,
       site_known_info: input.siteKnownInfo,
       survey_plan_outline: input.surveyPlanOutline,
-      assignee_name: "山田 太郎",
+      assignee_id: auth.userId,
+      assignee_name: auth.profile.displayName,
       status: "checklist_pending",
     })
     .select("*")
@@ -90,18 +95,23 @@ export async function createProposalCase(
   return rowToProposalCase(data as ProposalCaseRow);
 }
 
-export async function confirmChecklist(id: string): Promise<ProposalCase> {
-  const supabase = createSupabaseServerClient();
+export async function confirmChecklist(
+  auth: AuthContext,
+  id: string
+): Promise<ProposalCase> {
   const existing = await getProposalCaseById(id);
 
   if (!existing) {
     throw new Error("案件が見つかりません");
   }
 
+  assertCanManageCase(auth, existing);
+
   if (existing.checklistConfirmed) {
     return existing;
   }
 
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("proposal_cases")
     .update({
@@ -119,12 +129,17 @@ export async function confirmChecklist(id: string): Promise<ProposalCase> {
   return rowToProposalCase(data as ProposalCaseRow);
 }
 
-export async function seedChecklistItems(id: string): Promise<ProposalCase> {
+export async function seedChecklistItems(
+  auth: AuthContext,
+  id: string
+): Promise<ProposalCase> {
   const existing = await getProposalCaseById(id);
 
   if (!existing) {
     throw new Error("案件が見つかりません");
   }
+
+  assertCanManageCase(auth, existing);
 
   if (existing.checklistConfirmed) {
     throw new Error("確定済みのチェックリストは編集できません");
@@ -134,7 +149,7 @@ export async function seedChecklistItems(id: string): Promise<ProposalCase> {
     return existing;
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("proposal_cases")
     .update({ checklist_items: SAMPLE_CHECKLIST_ITEMS })
@@ -150,6 +165,7 @@ export async function seedChecklistItems(id: string): Promise<ProposalCase> {
 }
 
 export async function saveChecklistItems(
+  auth: AuthContext,
   id: string,
   items: ChecklistItem[]
 ): Promise<ProposalCase> {
@@ -159,11 +175,13 @@ export async function saveChecklistItems(
     throw new Error("案件が見つかりません");
   }
 
+  assertCanManageCase(auth, existing);
+
   if (existing.checklistConfirmed) {
     throw new Error("確定済みのチェックリストは編集できません");
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("proposal_cases")
     .update({ checklist_items: items })
@@ -178,12 +196,17 @@ export async function saveChecklistItems(
   return rowToProposalCase(data as ProposalCaseRow);
 }
 
-export async function generateDraft(id: string): Promise<ProposalCase> {
+export async function generateDraft(
+  auth: AuthContext,
+  id: string
+): Promise<ProposalCase> {
   const existing = await getProposalCaseById(id);
 
   if (!existing) {
     throw new Error("案件が見つかりません");
   }
+
+  assertCanManageCase(auth, existing);
 
   if (!existing.checklistConfirmed) {
     throw new Error("チェックリストを確定してから初稿を生成してください");
@@ -204,7 +227,7 @@ export async function generateDraft(id: string): Promise<ProposalCase> {
     throw new Error(`${message}（Supabase Storage の SQL を実行済みか確認してください）`);
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("proposal_cases")
     .update({
@@ -229,12 +252,17 @@ export async function generateDraft(id: string): Promise<ProposalCase> {
   return rowToProposalCase(data as ProposalCaseRow);
 }
 
-export async function runComplianceCheck(id: string): Promise<ProposalCase> {
+export async function runComplianceCheck(
+  auth: AuthContext,
+  id: string
+): Promise<ProposalCase> {
   const existing = await getProposalCaseById(id);
 
   if (!existing) {
     throw new Error("案件が見つかりません");
   }
+
+  assertCanManageCase(auth, existing);
 
   const hasGenerated = Object.values(existing.generatedSections).some(Boolean);
   if (!hasGenerated) {
@@ -263,7 +291,7 @@ export async function runComplianceCheck(id: string): Promise<ProposalCase> {
     throw new Error(`${message}（Supabase Storage の SQL を実行済みか確認してください）`);
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("proposal_cases")
     .update({
@@ -283,7 +311,10 @@ export async function runComplianceCheck(id: string): Promise<ProposalCase> {
   return rowToProposalCase(data as ProposalCaseRow);
 }
 
-export async function generateSubmissionPdf(id: string): Promise<ProposalCase> {
+export async function generateSubmissionPdf(
+  auth: AuthContext,
+  id: string
+): Promise<ProposalCase> {
   const existing = await getProposalCaseById(id);
 
   if (!existing) {
@@ -292,6 +323,13 @@ export async function generateSubmissionPdf(id: string): Promise<ProposalCase> {
 
   if (existing.status !== "approved") {
     throw new Error("承認済みの案件のみ PDF を出力できます");
+  }
+
+  if (
+    auth.profile.role !== "admin" &&
+    existing.assigneeId !== auth.userId
+  ) {
+    throw new Error("PDF を出力する権限がありません");
   }
 
   const pdfPath = pdfObjectPath(id);
@@ -308,7 +346,7 @@ export async function generateSubmissionPdf(id: string): Promise<ProposalCase> {
     throw new Error(`${message}（Supabase Storage の SQL を実行済みか確認してください）`);
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("proposal_cases")
     .update({ pdf_file_path: pdfPath })
@@ -324,6 +362,7 @@ export async function generateSubmissionPdf(id: string): Promise<ProposalCase> {
 }
 
 export async function requestApproval(
+  auth: AuthContext,
   id: string,
   reason?: string
 ): Promise<ProposalCase> {
@@ -333,11 +372,13 @@ export async function requestApproval(
     throw new Error("案件が見つかりません");
   }
 
+  assertCanManageCase(auth, existing);
+
   if (!["editing", "returned"].includes(existing.status)) {
     throw new Error("承認申請できる状態ではありません");
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("proposal_cases")
     .update({
@@ -357,8 +398,8 @@ export async function requestApproval(
 }
 
 export async function approveCase(
+  auth: AuthContext,
   id: string,
-  role: Extract<UserRole, "manager" | "director">,
   comment?: string
 ): Promise<ProposalCase> {
   const existing = await getProposalCaseById(id);
@@ -367,21 +408,22 @@ export async function approveCase(
     throw new Error("案件が見つかりません");
   }
 
-  const supabase = createSupabaseServerClient();
+  if (!canApproveCase(auth, existing.status)) {
+    throw new Error("承認できる状態ではありません");
+  }
+
+  const supabase = await createSupabaseServerClient();
   const now = new Date().toISOString();
   const trimmedComment = comment?.trim() || null;
+  const approverName = auth.profile.displayName;
 
-  if (role === "manager") {
-    if (existing.status !== "pending_manager") {
-      throw new Error("部長承認できる状態ではありません");
-    }
-
+  if (existing.status === "pending_manager") {
     const { data, error } = await supabase
       .from("proposal_cases")
       .update({
         status: "pending_director",
         manager_approved_at: now,
-        manager_approver_name: APPROVER_NAMES.manager,
+        manager_approver_name: approverName,
         manager_approval_comment: trimmedComment,
         return_reason: null,
       })
@@ -405,7 +447,7 @@ export async function approveCase(
     .update({
       status: "approved",
       director_approved_at: now,
-      director_approver_name: APPROVER_NAMES.director,
+      director_approver_name: approverName,
       director_approval_comment: trimmedComment,
       return_reason: null,
     })
@@ -421,8 +463,8 @@ export async function approveCase(
 }
 
 export async function returnCase(
+  auth: AuthContext,
   id: string,
-  role: Extract<UserRole, "manager" | "director">,
   reason: string
 ): Promise<ProposalCase> {
   const existing = await getProposalCaseById(id);
@@ -431,20 +473,16 @@ export async function returnCase(
     throw new Error("案件が見つかりません");
   }
 
+  if (!canReturnCase(auth, existing.status)) {
+    throw new Error("差戻しできる状態ではありません");
+  }
+
   const trimmedReason = reason.trim();
   if (!trimmedReason) {
     throw new Error("差し戻し理由を入力してください");
   }
 
-  if (role === "manager" && existing.status !== "pending_manager") {
-    throw new Error("部長差戻しできる状態ではありません");
-  }
-
-  if (role === "director" && existing.status !== "pending_director") {
-    throw new Error("支社長差戻しできる状態ではありません");
-  }
-
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("proposal_cases")
     .update({

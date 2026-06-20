@@ -15,7 +15,7 @@ export async function uploadProposalFile(
   body: Buffer | string,
   contentType: string
 ): Promise<string> {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const buffer = typeof body === "string" ? Buffer.from(body, "utf8") : body;
 
   const { error } = await supabase.storage
@@ -36,7 +36,7 @@ export async function downloadProposalFile(path: string): Promise<{
   data: Blob;
   contentType: string;
 }> {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.storage
     .from(PROPOSAL_FILES_BUCKET)
     .download(path);
@@ -51,8 +51,8 @@ export async function downloadProposalFile(path: string): Promise<{
   };
 }
 
-export function getPublicFileUrl(path: string): string {
-  const supabase = createSupabaseServerClient();
+export async function getPublicFileUrl(path: string): Promise<string> {
+  const supabase = await createSupabaseServerClient();
   const { data } = supabase.storage
     .from(PROPOSAL_FILES_BUCKET)
     .getPublicUrl(path);

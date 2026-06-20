@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 
 import { getProposalCaseById } from "@/lib/proposal/case-repository";
 import { downloadProposalFile } from "@/lib/proposal/file-storage";
+import { getRouteAuthContext, mapRepositoryError } from "@/lib/proposal/route-auth";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
 export async function GET(_request: Request, context: RouteContext) {
+  const authResult = await getRouteAuthContext();
+  if (!authResult.ok) return authResult.response;
+
   try {
     const { id } = await context.params;
     const caseItem = await getProposalCaseById(id);
@@ -34,8 +38,6 @@ export async function GET(_request: Request, context: RouteContext) {
       },
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Word のダウンロードに失敗しました";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return mapRepositoryError(error, "Word のダウンロードに失敗しました");
   }
 }

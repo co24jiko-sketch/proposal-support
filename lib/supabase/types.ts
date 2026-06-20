@@ -10,10 +10,20 @@ export interface GeneratedSectionsRow {
   effects: boolean;
 }
 
+export interface ProposalProfileRow {
+  id: string;
+  display_name: string;
+  role: string;
+  org: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ProposalCaseRow {
   id: string;
   project_name: string;
   client: string;
+  assignee_id?: string | null;
   location: string;
   schedule: string;
   survey_purpose: string;

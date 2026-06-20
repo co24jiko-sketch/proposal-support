@@ -1,32 +1,25 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
-function sanitizeEnv(value: string | undefined, name: string): string {
-  const trimmed = value?.trim();
-  if (!trimmed) {
-    throw new Error(
-      `Supabase の環境変数 ${name} が未設定です。Vercel の Environment Variables を確認してください。`
-    );
-  }
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 
-  const invalid = [...trimmed].find((char) => char.charCodeAt(0) > 255);
-  if (invalid) {
-    throw new Error(
-      `${name} に日本語など不正な文字が含まれています。Vercel の値を .env.local から英数字だけコピーし直してください。`
-    );
-  }
+export async function createSupabaseServerClient() {
+  const cookieStore = await cookies();
 
-  return trimmed;
-}
-
-export function createSupabaseServerClient() {
-  const supabaseUrl = sanitizeEnv(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    "NEXT_PUBLIC_SUPABASE_URL"
-  );
-  const supabaseAnonKey = sanitizeEnv(
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY"
-  );
-
-  return createClient(supabaseUrl, supabaseAnonKey);
+  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+          });
+        } catch {
+          // Server Components から呼ばれた場合は set 不可（Middleware で更新）
+        }
+      },
+    },
+  });
 }

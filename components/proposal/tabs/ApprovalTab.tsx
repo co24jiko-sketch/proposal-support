@@ -21,13 +21,12 @@ import { Textarea } from "@/components/ui/textarea";
 async function postApprovalAction(
   caseId: string,
   endpoint: "approve" | "return",
-  role: UserRole,
   payload: { reason?: string; comment?: string }
 ) {
   const response = await fetch(`/api/proposal/cases/${caseId}/${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ role, ...payload }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -91,7 +90,7 @@ export function ApprovalTab({ caseItem }: { caseItem: ProposalCase }) {
 
     try {
       if (isDbCase(caseItem.id)) {
-        await postApprovalAction(caseItem.id, "approve", role, {});
+        await postApprovalAction(caseItem.id, "approve", {});
       }
       router.refresh();
     } catch (error) {
@@ -115,7 +114,7 @@ export function ApprovalTab({ caseItem }: { caseItem: ProposalCase }) {
 
     try {
       if (isDbCase(caseItem.id)) {
-        await postApprovalAction(caseItem.id, "return", role, {
+        await postApprovalAction(caseItem.id, "return", {
           reason: returnReason,
         });
       }

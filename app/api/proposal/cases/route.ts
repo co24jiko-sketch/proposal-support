@@ -4,22 +4,27 @@ import {
   createProposalCase,
   listProposalCases,
 } from "@/lib/proposal/case-repository";
+import { getRouteAuthContext, mapRepositoryError } from "@/lib/proposal/route-auth";
 
 export async function GET() {
+  const authResult = await getRouteAuthContext();
+  if (!authResult.ok) return authResult.response;
+
   try {
     const cases = await listProposalCases();
     return NextResponse.json(cases);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "案件一覧の取得に失敗しました";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return mapRepositoryError(error, "案件一覧の取得に失敗しました");
   }
 }
 
 export async function POST(request: Request) {
+  const authResult = await getRouteAuthContext();
+  if (!authResult.ok) return authResult.response;
+
   try {
     const body = await request.json();
-    const created = await createProposalCase({
+    const created = await createProposalCase(authResult.auth, {
       projectName: body.projectName ?? "",
       client: body.client ?? "",
       location: body.location ?? "",
@@ -30,8 +35,6 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "案件の作成に失敗しました";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return mapRepositoryError(error, "案件の作成に失敗しました");
   }
 }
