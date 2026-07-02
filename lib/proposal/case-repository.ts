@@ -29,6 +29,7 @@ import {
   instantiateChecklistItems,
 } from "@/lib/proposal/scoring-templates";
 import { generateComplianceItems } from "@/lib/proposal/compliance-check";
+import { assertDraftReadiness } from "@/lib/proposal/draft-readiness";
 import { extractDocxText } from "@/lib/proposal/docx-text";
 import { extractChecklistItemsFromPdf } from "@/lib/proposal/extract-checklist";
 import { rowToProposalCase } from "@/lib/proposal/map-case-row";
@@ -441,6 +442,8 @@ export async function generateDraft(
   if (!existing.checklistConfirmed) {
     throw new Error("チェックリストを確定してから初稿を生成してください");
   }
+
+  assertDraftReadiness(existing);
 
   const version = "v1";
   const wordPath = wordObjectPath(id, version);

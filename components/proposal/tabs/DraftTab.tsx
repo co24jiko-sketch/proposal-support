@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Download, RefreshCw, Sparkles } from "lucide-react";
 
 import { ReferenceContextBar } from "@/components/proposal/ReferenceContextBar";
+import { DraftReadinessChecklist } from "@/components/proposal/DraftReadinessChecklist";
 import { useProposal } from "@/components/proposal/proposal-context";
 
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ import {
 } from "@/components/ui/table";
 
 import type { ProposalCase } from "@/lib/proposal/types";
+import { getDraftReadiness } from "@/lib/proposal/draft-readiness";
 import { isDbCase } from "@/lib/proposal/utils";
 import { cn } from "@/lib/utils";
 
@@ -48,32 +50,6 @@ const sections = [
   { key: "effects", label: "③ 効果" },
 
 ] as const;
-
-
-
-function getDraftGenerateBlockReason(
-
-  caseItem: ProposalCase,
-
-  llmStopped: boolean
-
-): string | null {
-
-  if (llmStopped) {
-
-    return "LLMサービス停止中のため、文案の生成は利用できません";
-
-  }
-
-  if (!caseItem.checklistConfirmed) {
-
-    return "チェックリストを確定すると、初稿の生成が利用できます";
-
-  }
-
-  return null;
-
-}
 
 
 
@@ -100,7 +76,8 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
   const [isReimporting, setIsReimporting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const generateBlockReason = getDraftGenerateBlockReason(caseItem, llmStopped);
+  const draftReadiness = getDraftReadiness(caseItem, llmStopped);
+  const generateBlockReason = draftReadiness.blockReason;
   const reimportBlockReason = getReimportBlockReason(caseItem);
   const hasGenerated = Object.values(caseItem.generatedSections).some(Boolean);
   const complianceHref = `/proposal/cases/${caseItem.id}?tab=compliance`;
@@ -111,7 +88,7 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
     : undefined;
 
   async function handleGenerateDraft() {
-    if (generateBlockReason) return;
+    if (!draftReadiness.canGenerate) return;
 
     setErrorMessage(null);
     setIsGenerating(true);
@@ -195,11 +172,11 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
 
   return (
 
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
 
       <ReferenceContextBar caseItem={caseItem} showChecklistLink />
 
-
+      <DraftReadinessChecklist readiness={draftReadiness} />
 
       <Card className={cn(phaseAActive && "ring-2 ring-primary/20")}>
 
@@ -219,7 +196,7 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
 
         </CardHeader>
 
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
 
           <Table>
 
@@ -306,7 +283,7 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
           <div className="flex flex-wrap gap-2">
 
             <Button
-              disabled={!!generateBlockReason || isGenerating}
+              disabled={!draftReadiness.canGenerate || isGenerating}
               onClick={() => void handleGenerateDraft()}
             >
               <Sparkles />
@@ -382,7 +359,7 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
 
         </CardHeader>
 
-        <CardContent className="space-y-3">
+        <CardContent className="flex flex-col gap-3">
 
           <p className="text-sm text-muted-foreground">
 
