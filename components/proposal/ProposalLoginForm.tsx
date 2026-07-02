@@ -46,7 +46,14 @@ export function ProposalLoginForm() {
       });
 
       if (error) {
-        setErrorMessage("メールアドレスまたはパスワードが正しくありません");
+        const isNetworkError =
+          error.status === 0 ||
+          /fetch|network|failed to/i.test(error.message);
+        setErrorMessage(
+          isNetworkError
+            ? "認証サーバーに接続できません。Supabase プロジェクトが休止していないか確認してください。"
+            : "メールアドレスまたはパスワードが正しくありません"
+        );
         return;
       }
 

@@ -31,23 +31,6 @@ function redirectToLogin(request: NextRequest, pathname: string): NextResponse {
   return NextResponse.redirect(url);
 }
 
-const GET_USER_TIMEOUT_MS = 8_000;
-
-async function getUserWithTimeout(
-  supabase: ReturnType<typeof createServerClient>
-): Promise<{ data: { user: Awaited<ReturnType<typeof supabase.auth.getUser>>["data"]["user"] } }> {
-  try {
-    return await Promise.race([
-      supabase.auth.getUser(),
-      new Promise<{ data: { user: null } }>((resolve) => {
-        setTimeout(() => resolve({ data: { user: null } }), GET_USER_TIMEOUT_MS);
-      }),
-    ]);
-  } catch {
-    return { data: { user: null } };
-  }
-}
-
 export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -86,8 +69,10 @@ export async function updateSession(request: NextRequest) {
   });
 
   const {
-    data: { user },
-  } = await getUserWithTimeout(supabase);
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const user = session?.user ?? null;
 
   if (!user && isProtectedPath(pathname)) {
     if (pathname.startsWith("/api/")) {
