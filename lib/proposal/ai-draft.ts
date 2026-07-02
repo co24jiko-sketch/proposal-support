@@ -218,7 +218,6 @@ async function callAnthropicDraft(
     body: JSON.stringify({
       model: getClaudeModel(),
       max_tokens: 4096,
-      temperature: 0.4,
       system,
       messages: [{ role: "user", content: user }],
     }),

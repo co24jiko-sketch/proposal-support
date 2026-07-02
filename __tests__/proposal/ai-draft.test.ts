@@ -180,6 +180,10 @@ describe("ai-draft", () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.anthropic.com/v1/messages");
+    const requestBody = JSON.parse(
+      String(fetchMock.mock.calls[0]?.[1]?.body)
+    ) as Record<string, unknown>;
+    expect(requestBody.temperature).toBeUndefined();
     expect(draft.summary).toBe("Claude概要");
   });
 
