@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { FileText } from "lucide-react";
 
@@ -23,6 +23,15 @@ export function ProposalLoginForm() {
     callbackError ? "ログインに失敗しました。もう一度お試しください。" : null
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        window.location.assign(nextPath);
+      }
+    });
+  }, [nextPath]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -31,17 +31,35 @@ function redirectToLogin(request: NextRequest, pathname: string): NextResponse {
   return NextResponse.redirect(url);
 }
 
+const GET_USER_TIMEOUT_MS = 8_000;
+
+async function getUserWithTimeout(
+  supabase: ReturnType<typeof createServerClient>
+): Promise<{ data: { user: Awaited<ReturnType<typeof supabase.auth.getUser>>["data"]["user"] } }> {
+  try {
+    return await Promise.race([
+      supabase.auth.getUser(),
+      new Promise<{ data: { user: null } }>((resolve) => {
+        setTimeout(() => resolve({ data: { user: null } }), GET_USER_TIMEOUT_MS);
+      }),
+    ]);
+  } catch {
+    return { data: { user: null } };
+  }
+}
+
 export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const hasSessionCookie = hasSupabaseSessionCookie(request);
 
-  // 未ログインの公開ページは Supabase 往復なし（Vercel middleware タイムアウト回避）
-  if (isPublicPath(pathname) && !hasSessionCookie) {
+  // 公開ページは常に Supabase 往復なし（古い Cookie があってもタイムアウトしない）
+  if (isPublicPath(pathname)) {
     return NextResponse.next({ request });
   }
 
+  const hasSessionCookie = hasSupabaseSessionCookie(request);
+
   // 未ログインの保護ページは即リダイレクト / 401（Supabase 応答待ちをしない）
-  if (!hasSessionCookie && isProtectedPath(pathname) && !isPublicPath(pathname)) {
+  if (!hasSessionCookie && isProtectedPath(pathname)) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "ログインが必要です" }, { status: 401 });
     }
@@ -69,15 +87,9 @@ export async function updateSession(request: NextRequest) {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUserWithTimeout(supabase);
 
-  if (user && pathname === "/proposal/login") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/proposal";
-    return NextResponse.redirect(url);
-  }
-
-  if (!user && isProtectedPath(pathname) && !isPublicPath(pathname)) {
+  if (!user && isProtectedPath(pathname)) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "ログインが必要です" }, { status: 401 });
     }
