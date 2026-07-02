@@ -1,5 +1,5 @@
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
-const DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-20250514";
+const DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-6";
 
 export type LlmProvider = "anthropic" | "openai";
 

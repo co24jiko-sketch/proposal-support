@@ -63,7 +63,7 @@ describe("llm-config", () => {
     expect(getLlmProvider()).toBeNull();
   });
 
-  it("Claude モデルのデフォルトは Sonnet", () => {
-    expect(getClaudeModel()).toBe("claude-sonnet-4-20250514");
+  it("Claude モデルのデフォルトは Sonnet 4.6", () => {
+    expect(getClaudeModel()).toBe("claude-sonnet-4-6");
   });
 });
