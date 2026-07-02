@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
+import mammoth from "mammoth";
 
-import { buildForm10TemplateData } from "@/lib/proposal/form10-template-data";
-import { fillForm10Template } from "@/lib/proposal/word-template";
-import { isOfficialForm10SourceAvailable } from "@/lib/proposal/official-form10-fill";
+import { fillOfficialForm10Template } from "@/lib/proposal/official-form10-fill";
 import type { ProposalCase } from "@/lib/proposal/types";
 
-function baseCase(overrides: Partial<ProposalCase> = {}): ProposalCase {
+function baseCase(): ProposalCase {
   return {
     id: "case-test",
     projectName: "テスト案件",
@@ -42,30 +41,25 @@ function baseCase(overrides: Partial<ProposalCase> = {}): ProposalCase {
       effects: true,
     },
     draftSections: {
-      summary: "概要文案",
-      focusPoints: "着目点文案",
-      detail: "詳細文案",
-      effects: "効果文案",
+      summary: "概要文案テスト",
+      focusPoints: "着目点文案テスト",
+      detail: "詳細文案テスト",
+      effects: "効果文案テスト",
       needsTechnicalReview: false,
       generatedAt: "2026-07-02T00:00:00.000Z",
     },
     currentWordVersion: "v2",
-    ...overrides,
   };
 }
 
-describe("form10 template", () => {
-  it("案件データをテンプレート用オブジェクトに変換する", () => {
-    const data = buildForm10TemplateData(baseCase());
-    expect(data.summary).toBe("概要文案");
-    expect(data.proposalAxis).toBe("確定した軸");
-    expect(data.version).toBe("v2");
-  });
-
-  it("様式－１０テンプレートに流し込んで docx を生成する", () => {
-    expect(isOfficialForm10SourceAvailable()).toBe(true);
-    const buffer = fillForm10Template(baseCase());
-    expect(buffer.byteLength).toBeGreaterThan(1000);
-    expect(buffer.subarray(0, 2).toString()).toBe("PK");
+describe("official form10 fill", () => {
+  it("高山資料様式の見出しと文案が docx に入る", async () => {
+    const buffer = fillOfficialForm10Template(baseCase());
+    const { value } = await mammoth.extractRawText({ buffer });
+    expect(value).toContain("（様式－１０）");
+    expect(value).toContain("概要文案テスト");
+    expect(value).toContain("着目点文案テスト");
+    expect(value).toContain("詳細文案テスト");
+    expect(value).toContain("効果文案テスト");
   });
 });

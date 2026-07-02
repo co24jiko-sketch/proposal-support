@@ -5,6 +5,10 @@ import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 
 import { buildForm10TemplateData } from "@/lib/proposal/form10-template-data";
+import {
+  fillOfficialForm10Template,
+  isOfficialForm10SourceAvailable,
+} from "@/lib/proposal/official-form10-fill";
 import type { ProposalCase } from "@/lib/proposal/types";
 
 export const FORM10_TEMPLATE_FILENAME = "form-10-v1.docx";
@@ -33,7 +37,7 @@ function getTemplateBytes(): Buffer {
   return cachedTemplateBytes;
 }
 
-export function fillForm10Template(caseItem: ProposalCase): Buffer {
+function fillDocxTemplate(caseItem: ProposalCase): Buffer {
   const zip = new PizZip(getTemplateBytes());
   const doc = new Docxtemplater(zip, {
     paragraphLoop: true,
@@ -48,7 +52,18 @@ export function fillForm10Template(caseItem: ProposalCase): Buffer {
   }) as Buffer;
 }
 
+export function fillForm10Template(caseItem: ProposalCase): Buffer {
+  if (isOfficialForm10SourceAvailable()) {
+    return fillOfficialForm10Template(caseItem);
+  }
+  return fillDocxTemplate(caseItem);
+}
+
 export function isForm10TemplateAvailable(): boolean {
+  return isOfficialForm10SourceAvailable() || isDocxTemplateAvailable();
+}
+
+function isDocxTemplateAvailable(): boolean {
   try {
     getTemplateBytes();
     return true;

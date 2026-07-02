@@ -14,12 +14,12 @@ export default function AdminTemplatePage() {
         <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
           <p>（様式－１０）docxtemplater プレースホルダー付きテンプレート</p>
           <p>
-            実ファイル: <code className="text-foreground">lib/proposal/templates/form-10-v1.docx</code>
+            実ファイル:{" "}
+            <code className="text-foreground">
+              lib/proposal/templates/form-10-official-source.docx
+            </code>
           </p>
-          <p>
-            会社様式に差し替える場合は、同じ {"{{summary}}"} 等のプレースホルダーを Word
-            側に設定してください。
-          </p>
+          <p>高山資料の様式－１０をそのまま流し込み先に使用します。</p>
           <Button variant="outline" disabled>
             テンプレをアップロード（将来）
           </Button>
