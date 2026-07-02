@@ -58,6 +58,41 @@ function assertCanManageCase(auth: AuthContext, caseItem: ProposalCase): void {
   }
 }
 
+async function buildAndUploadWordVersion(
+  caseItem: ProposalCase,
+  version: string
+): Promise<string> {
+  const wordPath = wordObjectPath(caseItem.id, version);
+
+  let buffer: Buffer;
+  try {
+    buffer = await buildWordDocxBuffer({
+      ...caseItem,
+      currentWordVersion: version,
+    });
+  } catch (error) {
+    const detail =
+      error instanceof Error ? error.message : "不明なエラー";
+    throw new Error(`Word 文書の生成に失敗しました: ${detail}`);
+  }
+
+  try {
+    await uploadProposalFile(
+      wordPath,
+      buffer,
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Word ファイルの保存に失敗しました";
+    throw new Error(
+      `${message}（Supabase Storage の SQL を実行済みか確認してください）`
+    );
+  }
+
+  return wordPath;
+}
+
 export async function listProposalCases(): Promise<ProposalCase[]> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
@@ -466,19 +501,8 @@ export async function generateDraft(
   const version = existing.currentWordVersion
     ? `v${Number.parseInt(existing.currentWordVersion.replace(/\D/g, ""), 10) + 1 || 2}`
     : "v1";
-  const wordPath = wordObjectPath(id, version);
 
-  try {
-    await uploadProposalFile(
-      wordPath,
-      await buildWordDocxBuffer({ ...caseWithDraft, currentWordVersion: version }),
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    );
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Word ファイルの保存に失敗しました";
-    throw new Error(`${message}（Supabase Storage の SQL を実行済みか確認してください）`);
-  }
+  const wordPath = await buildAndUploadWordVersion(caseWithDraft, version);
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
@@ -556,19 +580,8 @@ export async function runComplianceCheck(
   const nextVersion = existing.currentWordVersion
     ? `v${Number.parseInt(existing.currentWordVersion.replace(/\D/g, ""), 10) + 1 || 2}`
     : "v2";
-  const wordPath = wordObjectPath(id, nextVersion);
 
-  try {
-    await uploadProposalFile(
-      wordPath,
-      await buildWordDocxBuffer({ ...existing, currentWordVersion: nextVersion }),
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    );
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Word ファイルの保存に失敗しました";
-    throw new Error(`${message}（Supabase Storage の SQL を実行済みか確認してください）`);
-  }
+  const wordPath = await buildAndUploadWordVersion(existing, nextVersion);
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase

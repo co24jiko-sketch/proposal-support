@@ -12,10 +12,18 @@ const nextConfig: NextConfig = {
     root: projectRoot,
   },
   outputFileTracingRoot: projectRoot,
-  // Vercel サーバーレスに PDF 用日本語フォント（~6MB）を同梱する
+  // Vercel サーバーレスにランタイム読み込みファイルを同梱する
   outputFileTracingIncludes: {
     "/api/proposal/cases/[id]/generate-pdf": [
       "./node_modules/@fontpkg/ip-aex-gothic/IPAexGothic.ttf",
+    ],
+    "/api/proposal/cases/[id]/generate-draft": [
+      "./lib/proposal/templates/form-10-official-source.docx",
+      "./lib/proposal/templates/form-10-v1.docx",
+    ],
+    "/api/proposal/cases/[id]/run-compliance": [
+      "./lib/proposal/templates/form-10-official-source.docx",
+      "./lib/proposal/templates/form-10-v1.docx",
     ],
   },
 };

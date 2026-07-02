@@ -8,6 +8,7 @@ import { buildForm10TemplateData } from "@/lib/proposal/form10-template-data";
 import {
   fillOfficialForm10Template,
   isOfficialForm10SourceAvailable,
+  OFFICIAL_SOURCE_FILENAME,
 } from "@/lib/proposal/official-form10-fill";
 import type { ProposalCase } from "@/lib/proposal/types";
 
@@ -56,7 +57,15 @@ export function fillForm10Template(caseItem: ProposalCase): Buffer {
   if (isOfficialForm10SourceAvailable()) {
     return fillOfficialForm10Template(caseItem);
   }
-  return fillDocxTemplate(caseItem);
+
+  // 正式様式が無い環境のみ簡易テンプレートへフォールバック（ローカル開発用）
+  if (isDocxTemplateAvailable()) {
+    return fillDocxTemplate(caseItem);
+  }
+
+  throw new Error(
+    `様式－１０テンプレートが見つかりません（${OFFICIAL_SOURCE_FILENAME} または ${FORM10_TEMPLATE_FILENAME}）。Vercel では outputFileTracingIncludes の設定を確認してください。`
+  );
 }
 
 export function isForm10TemplateAvailable(): boolean {
