@@ -28,7 +28,32 @@ const SECTION_KEYS: AiDraftSectionKey[] = [
   "effects",
 ];
 
-type RawAiDraftResponse = Partial<Record<AiDraftSectionKey, unknown>>;
+type RawAiDraftResponse = Record<string, unknown>;
+
+const SECTION_KEY_ALIASES: Record<AiDraftSectionKey, string[]> = {
+  summary: ["summary", "概要", "proposal_summary"],
+  focusPoints: [
+    "focusPoints",
+    "focus_points",
+    "focuspoints",
+    "着目点",
+    "key_points",
+  ],
+  detail: ["detail", "詳細", "detailed_content", "details"],
+  effects: ["effects", "効果", "benefits"],
+};
+
+const DRAFT_SECTIONS_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    summary: { type: "string" },
+    focusPoints: { type: "string" },
+    detail: { type: "string" },
+    effects: { type: "string" },
+  },
+  required: ["summary", "focusPoints", "detail", "effects"],
+  additionalProperties: false,
+} as const;
 
 export type GenerateAiDraftOptions = {
   llmStopped?: boolean;
@@ -69,6 +94,7 @@ export function buildDraftGenerationPrompt(
     "断定的な表現（「～する」「～を実施する」）を使い、手順・着目点・効果は番号付き（（１）（２）…）で書いてください。",
     "入札図書の評価ルール・留意事項を外さないこと。着目点の具体性は既知情報・計画骨子・専門判断に基づくこと。",
     "JSON のみを返してください。キーは summary, focusPoints, detail, effects の4つです。",
+    "4つのキーはすべて必須で、空文字にしてはいけません。",
   ].join("\n");
 
   const user = [
@@ -108,6 +134,17 @@ function normalizeSectionText(value: unknown): string {
   return value.trim();
 }
 
+function pickSectionText(
+  parsed: RawAiDraftResponse,
+  key: AiDraftSectionKey
+): string {
+  for (const alias of SECTION_KEY_ALIASES[key]) {
+    const value = normalizeSectionText(parsed[alias]);
+    if (value) return value;
+  }
+  return "";
+}
+
 export function parseAiDraftResponse(raw: string): DraftSectionsContent {
   let parsed: RawAiDraftResponse;
   try {
@@ -117,10 +154,10 @@ export function parseAiDraftResponse(raw: string): DraftSectionsContent {
   }
 
   const sections = {
-    summary: normalizeSectionText(parsed.summary),
-    focusPoints: normalizeSectionText(parsed.focusPoints),
-    detail: normalizeSectionText(parsed.detail),
-    effects: normalizeSectionText(parsed.effects),
+    summary: pickSectionText(parsed, "summary"),
+    focusPoints: pickSectionText(parsed, "focusPoints"),
+    detail: pickSectionText(parsed, "detail"),
+    effects: pickSectionText(parsed, "effects"),
   };
 
   for (const key of SECTION_KEYS) {
@@ -220,6 +257,12 @@ async function callAnthropicDraft(
       max_tokens: 4096,
       system,
       messages: [{ role: "user", content: user }],
+      output_config: {
+        format: {
+          type: "json_schema",
+          schema: DRAFT_SECTIONS_JSON_SCHEMA,
+        },
+      },
     }),
   });
 

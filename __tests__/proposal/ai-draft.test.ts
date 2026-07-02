@@ -101,6 +101,18 @@ describe("ai-draft", () => {
     expect(draft.needsTechnicalReview).toBe(false);
   });
 
+  it("snake_case のキー別名を受け入れる", () => {
+    const draft = parseAiDraftResponse(
+      JSON.stringify({
+        summary: "概要",
+        focus_points: "着目点",
+        detail: "詳細",
+        effects: "効果",
+      })
+    );
+    expect(draft.focusPoints).toBe("着目点");
+  });
+
   it("コードフェンス付き JSON をパースできる", () => {
     const draft = parseAiDraftResponse(
       "```json\n" +
@@ -184,6 +196,10 @@ describe("ai-draft", () => {
       String(fetchMock.mock.calls[0]?.[1]?.body)
     ) as Record<string, unknown>;
     expect(requestBody.temperature).toBeUndefined();
+    expect(
+      (requestBody.output_config as { format?: { type?: string } })?.format
+        ?.type
+    ).toBe("json_schema");
     expect(draft.summary).toBe("Claude概要");
   });
 
