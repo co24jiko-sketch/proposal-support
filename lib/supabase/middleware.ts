@@ -17,7 +17,37 @@ function isProtectedPath(pathname: string): boolean {
   );
 }
 
+/** Supabase SSR が付与するセッション Cookie の有無（未ログイン時の API 往復を省略する） */
+function hasSupabaseSessionCookie(request: NextRequest): boolean {
+  return request.cookies.getAll().some((cookie) => {
+    return cookie.name.startsWith("sb-") && cookie.name.includes("auth-token");
+  });
+}
+
+function redirectToLogin(request: NextRequest, pathname: string): NextResponse {
+  const url = request.nextUrl.clone();
+  url.pathname = "/proposal/login";
+  url.searchParams.set("next", pathname);
+  return NextResponse.redirect(url);
+}
+
 export async function updateSession(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const hasSessionCookie = hasSupabaseSessionCookie(request);
+
+  // 未ログインの公開ページは Supabase 往復なし（Vercel middleware タイムアウト回避）
+  if (isPublicPath(pathname) && !hasSessionCookie) {
+    return NextResponse.next({ request });
+  }
+
+  // 未ログインの保護ページは即リダイレクト / 401（Supabase 応答待ちをしない）
+  if (!hasSessionCookie && isProtectedPath(pathname) && !isPublicPath(pathname)) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "ログインが必要です" }, { status: 401 });
+    }
+    return redirectToLogin(request, pathname);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
@@ -41,8 +71,6 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
-
   if (user && pathname === "/proposal/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/proposal";
@@ -53,11 +81,7 @@ export async function updateSession(request: NextRequest) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "ログインが必要です" }, { status: 401 });
     }
-
-    const url = request.nextUrl.clone();
-    url.pathname = "/proposal/login";
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    return redirectToLogin(request, pathname);
   }
 
   return supabaseResponse;
