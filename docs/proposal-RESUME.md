@@ -1,6 +1,6 @@
 # 技術提案書サポート — 次回再開用メモ
 
-最終更新: 2026-06-20（Phase 4 完了・パイロット準備済み）
+最終更新: 2026-06-20（Phase 1〜4 完了・1 人通し確認 OK・JST 表示修正済み）
 
 ## クイックスタート
 
@@ -248,9 +248,9 @@ where assignee_id is null;
 
 ## 次回やること（優先度順）
 
-1. **パイロット実施** — `docs/proposal-pilot-guide.md` に沿って試行・フィードバック収集
+1. **関係者パイロット** — 人・日程が決まったら `docs/proposal-pilot-guide.md` に沿って実施（Supabase で担当者アカウント作成）
 2. **採点基準マスタ整備** — 正式な基準を `lib/proposal/scoring-templates.ts` に登録（または DB 化）
-3. **任意改善** — 履歴の JST 表示、Word 手修正再取込 など
+3. **任意** — 見た目調整、図解 PNG 更新（HTML は最新）、本番 Supabase 環境、Word 手修正再取込
 
 ### Phase 3 実装サマリ（2026-06-20 完了）
 
@@ -325,8 +325,8 @@ where assignee_id is null;
 | 適合チェック | Word 本文照合（本実装） | — |
 | 承認フロー | DB 保存済み・通し確認 OK | — |
 | PDF 出力 | Storage 実 PDF + DL 確認 OK | — |
-| 公開 | Vercel 通し確認 OK | Phase 4 履歴タブ OK（`cd8915d`） |
-| パイロット | 手順書 `proposal-pilot-guide.md` | 実施・フィードバック |
+| 公開 | Vercel 通し確認 OK | 最新 `9077f9f`（JST 履歴表示） |
+| パイロット | 手順書・1 人通し確認 OK | 関係者パイロット（日程未定） |
 
 ## 再開手順（自分で始める場合）
 
@@ -353,25 +353,30 @@ C:\Users\haram\src\workspace-ui-kit\docs\proposal-RESUME.md を読んで、
 【完了済み（2026-06-20）】
 - Phase 1 認証: Supabase 設定・3ロール・RLS 完了
 - Phase 2 Word/PDF: 実 .docx / 実 PDF（日本語）生成・Storage 保存・DL 完了
-  - Vercel 公開サイトで PDF 生成・DL・日本語ファイル名 OK（push: e99d17f 時点）
-- Phase 3 完了（ローカル確認済み・未 push）:
-  - 入札図書 PDF アップロード（チェックリストタブ「PDFをアップロード」）
-  - 採点基準マスタ選択（`scoring-templates.ts`、PDF 抽出は補助）
-  - 適合チェック本実装（Word 本文と searchKeywords 照合 → ○△×）
-  - Supabase SQL: `add_bid_document.sql` 実行済み想定
-- 採点項目 0 件でも適合チェック→承認申請可能（スキップ扱い）
+- Phase 3: 入札図書 PDF・採点基準マスタ・適合チェック本実装（公開確認 OK）
+- Phase 4: 監査ログ・版履歴 DB 永続化（`add_case_history.sql` 実行済み・履歴タブ OK）
+- パイロット準備: `docs/proposal-pilot-guide.md` 作成、図解 HTML 更新、GitHub push 済み
+- 1 人通し確認: 公開サイトで担当者→部長→支社長→PDF→履歴まで OK
+- 履歴時刻: 日本時間（JST）表示（`9077f9f`・公開確認 OK）
+- 入札図書 PDF: 4MB 以下（Vercel 制限）
 - 公開: https://proposal-support.vercel.app/proposal/login
+- 最新 push: `9077f9f`（GitHub: `git push github main`）
 
 【パイロット用アカウント】
 - 部長: manager@pilot.local / PilotManager2026
 - 支社長: director@pilot.local / PilotDirector2026
+- 担当者: Supabase で個別作成（assignee ロール）
 - ※ 支社長ログイン失敗時: Dashboard でユーザー再作成 → SQL で role=director
 
+【後回し・未着手】
+- 関係者パイロット（人が集まったタイミングで実施）
+- 採点基準マスタの正式登録（現状は仮マスタ 2 件）
+- 見た目調整（Phase 外・必要なら画面指定で）
+
 【次の作業（優先度順）】
-1. Phase 3 の GitHub push → Vercel Redeploy → 公開サイト確認
-2. Phase 4: 監査ログ・版履歴の DB 永続化
-3. 採点基準マスタの正式登録（または DB 化）
-4. パイロット準備（運用手順・図解更新など）
+1. 関係者パイロット（可能になったら）
+2. 採点基準マスタ整備
+3. 任意: 見た目調整、図解 PNG 更新、本番 Supabase 環境
 
 【進め方の希望】
 手順は1つずつ指示して、できたか確認してから次に進めてください。
@@ -380,7 +385,17 @@ npm run dev が止まっていたら起動してください（3000 固まり時
 
 ## 作業終了時メモ
 
-### 2026-06-20（Phase 3 完了・作業一時終了）
+### 2026-06-20（作業終了・Phase 1〜4 完了）
+
+- **Phase 3 push** — `76c4317` → Vercel 公開確認 OK
+- **Phase 4** — 版履歴・操作ログ（`add_case_history.sql` 実行済み）、ローカル + 公開確認 OK
+- **ビルド修正** — `cd8915d`（rowToProposalCase の TypeScript エラー）
+- **パイロット準備** — `proposal-pilot-guide.md`、図解 HTML 更新、`067a61d` push
+- **1 人通し確認** — 公開サイトで全フロー OK
+- **JST 表示** — `9077f9f` push、公開サイト確認 OK
+- **PDF アップロード** — 4MB 以下（Vercel 制限）。4.1MB で成功確認
+- **後回し** — 関係者パイロット、採点基準正式登録
+- **次回** — 上記「次回やること」参照
 
 - **Phase 3-1** — 入札図書 PDF アップロード（Storage + DB、チェックリストタブ）
 - **Phase 3-2** — 採点基準マスタ選択（仮マスタ 2 件、PDF 抽出は見送り）
