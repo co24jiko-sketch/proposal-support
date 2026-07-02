@@ -2,17 +2,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import fontkit from "@pdf-lib/fontkit";
-import {
-  Document,
-  HeadingLevel,
-  Packer,
-  Paragraph,
-  TextRun,
-} from "docx";
 import { PDFDocument, type PDFFont, rgb } from "pdf-lib";
 
 import type { ProposalCase } from "@/lib/proposal/types";
-
+import { fillForm10Template } from "@/lib/proposal/word-template";
 const A4_WIDTH = 595.28;
 const A4_HEIGHT = 841.89;
 const PAGE_MARGIN = 50;
@@ -39,28 +32,6 @@ function getJapaneseFontBytes(): Uint8Array {
   }
 
   return cachedJapaneseFontBytes;
-}
-
-function labeledParagraph(label: string, value: string): Paragraph {
-  return new Paragraph({
-    children: [
-      new TextRun({ text: `${label}: `, bold: true }),
-      new TextRun(value.trim() || "（未入力）"),
-    ],
-  });
-}
-
-function sectionHeading(text: string): Paragraph {
-  return new Paragraph({
-    text,
-    heading: HeadingLevel.HEADING_1,
-  });
-}
-
-function bodyParagraph(text: string): Paragraph {
-  return new Paragraph({
-    children: [new TextRun(text.trim() || "（未入力）")],
-  });
 }
 
 function wrapText(
@@ -92,58 +63,9 @@ function wrapText(
   return lines.length > 0 ? lines : ["（未入力）"];
 }
 
-/** 案件データから Word (.docx) バイナリを生成 */
+/** 案件データから Word (.docx) バイナリを生成（様式－１０テンプレートへ流し込み） */
 export async function buildWordDocxBuffer(caseItem: ProposalCase): Promise<Buffer> {
-  const { basicInput } = caseItem;
-  const versionLabel = caseItem.currentWordVersion ?? "v1";
-  const draft = caseItem.draftSections;
-
-  const doc = new Document({
-    sections: [
-      {
-        children: [
-          new Paragraph({
-            text: "技術提案書",
-            heading: HeadingLevel.TITLE,
-          }),
-          labeledParagraph("案件名", basicInput.projectName),
-          labeledParagraph("発注者", basicInput.client),
-          labeledParagraph("場所", basicInput.location),
-          labeledParagraph("工期", basicInput.schedule),
-          labeledParagraph("版", versionLabel),
-          ...(caseItem.evaluationTheme
-            ? [labeledParagraph("評価テーマ", caseItem.evaluationTheme)]
-            : []),
-          sectionHeading("１）提案の概要"),
-          bodyParagraph(
-            draft?.summary ?? basicInput.surveyPurpose
-          ),
-          sectionHeading("① 着目点"),
-          bodyParagraph(draft?.focusPoints ?? "（未生成）"),
-          sectionHeading("② 詳細な内容"),
-          bodyParagraph(
-            draft?.detail ?? basicInput.surveyPlanOutline
-          ),
-          sectionHeading("③ 効果"),
-          bodyParagraph(draft?.effects ?? "（未生成）"),
-          ...(draft?.needsTechnicalReview
-            ? [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: "※ 要技術者確認: 材料不足または表現の確認が必要です",
-                      bold: true,
-                    }),
-                  ],
-                }),
-              ]
-            : []),
-        ],
-      },
-    ],
-  });
-
-  return Buffer.from(await Packer.toBuffer(doc));
+  return fillForm10Template(caseItem);
 }
 
 /** 案件データから提出版 PDF バイナリを生成 */

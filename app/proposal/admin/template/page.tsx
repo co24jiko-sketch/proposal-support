@@ -11,10 +11,18 @@ export default function AdminTemplatePage() {
         <CardHeader>
           <CardTitle>技術提案書様式_ツール用_v1.docx</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <p>（様式－１０）+ 5コンテンツコントロール</p>
-          <p>Phase 0 で作成予定</p>
-          <Button variant="outline">テンプレをアップロード</Button>
+        <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
+          <p>（様式－１０）docxtemplater プレースホルダー付きテンプレート</p>
+          <p>
+            実ファイル: <code className="text-foreground">lib/proposal/templates/form-10-v1.docx</code>
+          </p>
+          <p>
+            会社様式に差し替える場合は、同じ {"{{summary}}"} 等のプレースホルダーを Word
+            側に設定してください。
+          </p>
+          <Button variant="outline" disabled>
+            テンプレをアップロード（将来）
+          </Button>
         </CardContent>
       </Card>
       <Button variant="ghost" render={<Link href="/proposal" />}>
