@@ -73,7 +73,7 @@ function getSectionPreviewMessage(
       "この章の AI 文案がデータベースに保存されていません。",
       "Step 6 導入前に生成した初稿の可能性があります。",
       "「初稿を一括生成」をもう一度実行してください。",
-      "（Supabase で add_draft_sections.sql の実行と OPENAI_API_KEY または PROPOSAL_AI_STUB=true の設定も確認してください）",
+      "（Supabase で add_draft_sections.sql の実行と ANTHROPIC_API_KEY または PROPOSAL_AI_STUB=true の設定も確認してください）",
     ].join("\n");
   }
 

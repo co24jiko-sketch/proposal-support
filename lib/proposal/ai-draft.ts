@@ -1,6 +1,9 @@
 import type { DraftSectionsContent, ProposalCase } from "@/lib/proposal/types";
 import {
   assertLlmConfigured,
+  getAnthropicApiKey,
+  getClaudeModel,
+  getLlmProvider,
   getOpenAiApiKey,
   getOpenAiModel,
   isAiStubMode,
@@ -108,7 +111,7 @@ function normalizeSectionText(value: unknown): string {
 export function parseAiDraftResponse(raw: string): DraftSectionsContent {
   let parsed: RawAiDraftResponse;
   try {
-    parsed = JSON.parse(raw) as RawAiDraftResponse;
+    parsed = JSON.parse(extractJsonPayload(raw)) as RawAiDraftResponse;
   } catch {
     throw new Error("AI 文案の応答を JSON として解析できませんでした");
   }
@@ -134,6 +137,22 @@ export function parseAiDraftResponse(raw: string): DraftSectionsContent {
     needsTechnicalReview: forbidden.length > 0,
     generatedAt: new Date().toISOString(),
   };
+}
+
+export function extractJsonPayload(raw: string): string {
+  const trimmed = raw.trim();
+  const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+  if (fenceMatch) {
+    return fenceMatch[1].trim();
+  }
+
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start !== -1 && end > start) {
+    return trimmed.slice(start, end + 1);
+  }
+
+  return trimmed;
 }
 
 function buildStubDraft(caseItem: ProposalCase): DraftSectionsContent {
@@ -178,6 +197,60 @@ function buildStubDraft(caseItem: ProposalCase): DraftSectionsContent {
   };
 }
 
+async function callAnthropicDraft(
+  caseItem: ProposalCase,
+  bidDocumentText: string
+): Promise<DraftSectionsContent> {
+  const apiKey = getAnthropicApiKey();
+  if (!apiKey) {
+    throw new Error("ANTHROPIC_API_KEY が未設定です");
+  }
+
+  const { system, user } = buildDraftGenerationPrompt(caseItem, bidDocumentText);
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: getClaudeModel(),
+      max_tokens: 4096,
+      temperature: 0.4,
+      system,
+      messages: [{ role: "user", content: user }],
+    }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(
+      `Claude 文案生成 API が失敗しました（${response.status}）${detail ? `: ${detail.slice(0, 200)}` : ""}`
+    );
+  }
+
+  const payload = (await response.json()) as {
+    content?: Array<{ type?: string; text?: string }>;
+  };
+  const content = payload.content
+    ?.filter((block) => block.type === "text")
+    .map((block) => block.text ?? "")
+    .join("")
+    .trim();
+
+  if (!content) {
+    throw new Error("Claude 文案生成 API から空の応答が返りました");
+  }
+
+  const draft = parseAiDraftResponse(content);
+  if (!hasSiteContext(caseItem)) {
+    return { ...draft, needsTechnicalReview: true };
+  }
+  return draft;
+}
+
 async function callOpenAiDraft(
   caseItem: ProposalCase,
   bidDocumentText: string
@@ -209,7 +282,7 @@ async function callOpenAiDraft(
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
     throw new Error(
-      `AI 文案生成 API が失敗しました（${response.status}）${detail ? `: ${detail.slice(0, 200)}` : ""}`
+      `OpenAI 文案生成 API が失敗しました（${response.status}）${detail ? `: ${detail.slice(0, 200)}` : ""}`
     );
   }
 
@@ -218,7 +291,7 @@ async function callOpenAiDraft(
   };
   const content = payload.choices?.[0]?.message?.content;
   if (!content) {
-    throw new Error("AI 文案生成 API から空の応答が返りました");
+    throw new Error("OpenAI 文案生成 API から空の応答が返りました");
   }
 
   const draft = parseAiDraftResponse(content);
@@ -226,6 +299,23 @@ async function callOpenAiDraft(
     return { ...draft, needsTechnicalReview: true };
   }
   return draft;
+}
+
+async function callLlmDraft(
+  caseItem: ProposalCase,
+  bidDocumentText: string
+): Promise<DraftSectionsContent> {
+  const provider = getLlmProvider();
+  if (provider === "anthropic") {
+    return callAnthropicDraft(caseItem, bidDocumentText);
+  }
+  if (provider === "openai") {
+    return callOpenAiDraft(caseItem, bidDocumentText);
+  }
+
+  throw new Error(
+    "LLM API キーが未設定です。ANTHROPIC_API_KEY または OPENAI_API_KEY を設定してください"
+  );
 }
 
 export async function generateAiDraftSections(
@@ -243,5 +333,5 @@ export async function generateAiDraftSections(
     return buildStubDraft(caseItem);
   }
 
-  return callOpenAiDraft(caseItem, bidDocumentText);
+  return callLlmDraft(caseItem, bidDocumentText);
 }
