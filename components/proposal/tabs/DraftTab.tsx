@@ -180,7 +180,7 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
             error?: string;
           } | null;
           throw new Error(
-            body?.error ?? "適合チェック結果の保存に失敗しました"
+            body?.error ?? "記載ルールチェック結果の保存に失敗しました"
           );
         }
       }
@@ -191,7 +191,7 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "適合チェック結果の保存に失敗しました"
+          : "記載ルールチェック結果の保存に失敗しました"
       );
     } finally {
       setIsReimporting(false);
@@ -409,7 +409,7 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
 
             </Badge>
 
-            <CardTitle>Word 再取込（手修正後）</CardTitle>
+            <CardTitle>記載ルール再チェック</CardTitle>
 
           </div>
 
@@ -419,7 +419,7 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
 
           <p className="text-sm text-muted-foreground">
 
-            図表（位置図・柱状図等）は Word 上で手挿入してください。再取込後は適合チェックタブへ自動的に進めます。
+            図表（位置図・柱状図等）は Word 上で手挿入してください。再チェック後は記載ルールチェックタブへ自動的に進めます。
 
           </p>
 
@@ -441,7 +441,7 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
               disabled={!!reimportBlockReason || isReimporting}
               onClick={() => void handleReimport()}
             >
-              {isReimporting ? "チェック中..." : "再取込して適合チェックへ"}
+              {isReimporting ? "チェック中..." : "再チェックして記載ルールへ"}
             </Button>
 
           </div>

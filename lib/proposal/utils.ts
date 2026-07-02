@@ -49,7 +49,7 @@ export function getWorkflowStepLockReason(step: WorkflowStepId): string {
     case "reimport":
       return "初稿を生成して Word をダウンロードした後に利用できます";
     case "approval_request":
-      return "Word を再取込して適合チェックを完了すると利用できます";
+      return "初稿を生成して記載ルールチェックを完了すると利用できます";
     case "pdf_export":
       return "部長・支社長の承認が完了すると利用できます";
     default:
@@ -198,7 +198,7 @@ export function getNextAction(caseItem: ProposalCase) {
         hint:
           caseItem.status === "returned"
             ? "差し戻し内容を反映した Word を再取込してください"
-            : "手修正済みの Word をアップロードして適合チェックへ進みます",
+            : "文案を修正したあと記載ルールチェックへ進みます",
       };
     case "pending_manager":
     case "pending_director":

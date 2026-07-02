@@ -16,6 +16,6 @@ export async function POST(_request: Request, context: RouteContext) {
     const updated = await runComplianceCheck(authResult.auth, id);
     return NextResponse.json(updated);
   } catch (error) {
-    return mapRepositoryError(error, "適合チェック結果の保存に失敗しました");
+    return mapRepositoryError(error, "記載ルールチェック結果の保存に失敗しました");
   }
 }

@@ -159,7 +159,7 @@ export function ApprovalTab({ caseItem }: { caseItem: ProposalCase }) {
 
       <Card>
         <CardHeader className="flex-row items-center justify-between">
-          <CardTitle>適合サマリ</CardTitle>
+          <CardTitle>記載ルールサマリ</CardTitle>
           <ComplianceSummaryBadges {...summary} />
         </CardHeader>
         <CardContent>

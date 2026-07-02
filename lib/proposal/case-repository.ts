@@ -24,15 +24,14 @@ import {
   uploadProposalFile,
   wordObjectPath,
 } from "@/lib/proposal/file-storage";
+import { generateGuidelineCheckItems } from "@/lib/proposal/guideline-check";
 import {
   getScoringTemplate,
   instantiateChecklistItems,
 } from "@/lib/proposal/scoring-templates";
-import { generateComplianceItems } from "@/lib/proposal/compliance-check";
 import { generateAiDraftSections } from "@/lib/proposal/ai-draft";
 import { assertDraftReadiness } from "@/lib/proposal/draft-readiness";
 import { extractBidDocumentText } from "@/lib/proposal/bid-document-text";
-import { extractDocxText } from "@/lib/proposal/docx-text";
 import { extractChecklistItemsFromPdf } from "@/lib/proposal/extract-checklist";
 import { rowToProposalCase } from "@/lib/proposal/map-case-row";
 import { SAMPLE_CHECKLIST_ITEMS } from "@/lib/proposal/sample-checklist";
@@ -504,6 +503,8 @@ export async function generateDraft(
 
   const wordPath = await buildAndUploadWordVersion(caseWithDraft, version);
 
+  const complianceItems = await generateGuidelineCheckItems(draftSections);
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("proposal_cases")
@@ -515,6 +516,7 @@ export async function generateDraft(
         detail: true,
         effects: true,
       },
+      compliance_items: complianceItems,
       status: "editing",
       current_word_version: version,
       word_file_path: wordPath,
@@ -532,27 +534,9 @@ export async function generateDraft(
     : undefined;
   await recordAuditLog(id, auth, "初稿生成", auditDetail);
   await recordCaseVersion(id, auth, version, "初稿生成", wordPath);
+  await recordAuditLog(id, auth, "記載ルールチェック実行", "初稿生成時に自動実行");
 
   return rowToProposalCase(data as ProposalCaseRow);
-}
-
-async function loadProposalDocumentText(caseItem: ProposalCase): Promise<string> {
-  if (caseItem.wordFilePath) {
-    const { data } = await downloadProposalFile(caseItem.wordFilePath);
-    const buffer = Buffer.from(await data.arrayBuffer());
-    return extractDocxText(buffer);
-  }
-
-  const { basicInput } = caseItem;
-  return [
-    basicInput.projectName,
-    basicInput.surveyPurpose,
-    basicInput.surveyPlanOutline,
-    basicInput.siteKnownInfo,
-  ]
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 export async function runComplianceCheck(
@@ -567,29 +551,19 @@ export async function runComplianceCheck(
 
   assertCanManageCase(auth, existing);
 
-  const hasGenerated = Object.values(existing.generatedSections).some(Boolean);
-  if (!hasGenerated) {
-    throw new Error("初稿を生成してから適合チェックを実行してください");
+  if (!existing.draftSections) {
+    throw new Error("初稿を生成してから記載ルールチェックを実行してください");
   }
 
-  const documentText = await loadProposalDocumentText(existing);
-  const complianceItems = generateComplianceItems(
-    existing.checklistItems,
-    documentText
+  const complianceItems = await generateGuidelineCheckItems(
+    existing.draftSections
   );
-  const nextVersion = existing.currentWordVersion
-    ? `v${Number.parseInt(existing.currentWordVersion.replace(/\D/g, ""), 10) + 1 || 2}`
-    : "v2";
-
-  const wordPath = await buildAndUploadWordVersion(existing, nextVersion);
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("proposal_cases")
     .update({
       compliance_items: complianceItems,
-      current_word_version: nextVersion,
-      word_file_path: wordPath,
       status: "editing",
     })
     .eq("id", id)
@@ -597,11 +571,10 @@ export async function runComplianceCheck(
     .single();
 
   if (error) {
-    throw new Error(`適合チェック結果の保存に失敗しました: ${error.message}`);
+    throw new Error(`記載ルールチェック結果の保存に失敗しました: ${error.message}`);
   }
 
-  await recordAuditLog(id, auth, "適合チェック実行", `Word ${nextVersion}`);
-  await recordCaseVersion(id, auth, nextVersion, "適合チェック", wordPath);
+  await recordAuditLog(id, auth, "記載ルールチェック実行");
 
   return rowToProposalCase(data as ProposalCaseRow);
 }

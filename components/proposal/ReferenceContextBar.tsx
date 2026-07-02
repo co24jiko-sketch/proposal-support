@@ -29,7 +29,7 @@ export function ReferenceContextBar({
       </span>
       {caseItem.complianceItems.length > 0 && (
         <span className="text-muted-foreground">
-          適合 ○{summary.ok} △{summary.partial} ×{summary.missing}
+          記載ルール ○{summary.ok} △{summary.partial} ×{summary.missing}
         </span>
       )}
       {showChecklistLink && !caseItem.checklistConfirmed && (

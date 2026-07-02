@@ -58,7 +58,7 @@ export function ComplianceTab({ caseItem }: { caseItem: ProposalCase }) {
             error?: string;
           } | null;
           throw new Error(
-            body?.error ?? "適合チェック結果の保存に失敗しました"
+            body?.error ?? "記載ルールチェック結果の保存に失敗しました"
           );
         }
       }
@@ -68,7 +68,7 @@ export function ComplianceTab({ caseItem }: { caseItem: ProposalCase }) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "適合チェック結果の保存に失敗しました"
+          : "記載ルールチェック結果の保存に失敗しました"
       );
     } finally {
       setIsRechecking(false);
@@ -118,9 +118,9 @@ export function ComplianceTab({ caseItem }: { caseItem: ProposalCase }) {
       <Card>
         <CardHeader className="flex-row items-center justify-between gap-4">
           <div>
-            <CardTitle>適合チェック</CardTitle>
+            <CardTitle>記載ルールチェック</CardTitle>
             <p className="text-sm text-muted-foreground">
-              再取込版: {caseItem.currentWordVersion ?? "—"}
+              初稿生成時に自動実行されます。再チェックで最新の文案を判定します。
             </p>
           </div>
           {hasCompliance && <ComplianceSummaryBadges {...summary} />}
@@ -129,10 +129,10 @@ export function ComplianceTab({ caseItem }: { caseItem: ProposalCase }) {
           {!hasCompliance ? (
             <div className="rounded-lg border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground">
               <p className="mb-3">
-                適合チェックは Word 再取込後に実行されます。
+                記載ルールチェックは初稿生成後に自動実行されます。
               </p>
               <Button render={<Link href={draftHref} />}>
-                文案・Wordタブで再取込する
+                文案・Wordタブで初稿を生成する
               </Button>
             </div>
           ) : (

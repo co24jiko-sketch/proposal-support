@@ -31,7 +31,7 @@ export function ComplianceTable({ items, compact = false }: ComplianceTableProps
   if (items.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        適合チェック結果がありません。Word再取込後に実行してください。
+        記載ルールチェック結果がありません。初稿を生成してください。
       </p>
     );
   }

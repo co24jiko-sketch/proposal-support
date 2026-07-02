@@ -28,7 +28,7 @@ export const tabLabels: Record<CaseDetailTab, string> = {
   basic: "基本情報",
   checklist: "チェックリスト",
   draft: "文案・Word",
-  compliance: "適合チェック",
+  compliance: "記載ルールチェック",
   approval: "承認",
   history: "履歴",
 };

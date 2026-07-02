@@ -110,13 +110,6 @@ export function getDraftReadiness(
       ok: hasSiteContext(caseItem),
       hint: "空のままでも生成できますが、文案の具体性が弱くなります",
     },
-    {
-      id: "scoring-template",
-      label: "採点基準マスタを適用している（採点項目あり）",
-      level: "recommended",
-      ok: caseItem.checklistItems.length > 0,
-      hint: "0件でも初稿生成は可能です",
-    },
   ];
 
   const requiredItems = items.filter((item) => item.level === "required");
