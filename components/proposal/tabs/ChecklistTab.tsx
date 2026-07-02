@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
@@ -10,6 +9,7 @@ import { useProposal } from "@/components/proposal/proposal-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -35,10 +36,15 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
   const router = useRouter();
   const { llmStopped } = useProposal();
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isConfirmingAxis, setIsConfirmingAxis] = useState(false);
   const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isUploadingBid, setIsUploadingBid] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [axisErrorMessage, setAxisErrorMessage] = useState<string | null>(null);
+  const [axisInput, setAxisInput] = useState(
+    () => caseItem.proposalAxisConfirmed ?? caseItem.proposalAxisDraft
+  );
   const [selectedTemplateId, setSelectedTemplateId] = useState(
     SCORING_TEMPLATES[0]?.id ?? ""
   );
@@ -46,6 +52,9 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
 
   const confirmed = caseItem.checklistConfirmed;
   const canConfirm = !confirmed;
+  const isAxisConfirmed = Boolean(caseItem.proposalAxisConfirmed?.trim());
+  const needsAxisConfirm =
+    Boolean(caseItem.evaluationTheme) && !isAxisConfirmed;
   const draftHref = `/proposal/cases/${caseItem.id}?tab=draft`;
   const hasBidDocument = Boolean(caseItem.bidFilePath);
   const bidInputId = `bid-upload-${caseItem.id}`;
@@ -184,6 +193,41 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
     }
   }
 
+  async function handleConfirmAxis() {
+    setAxisErrorMessage(null);
+    setIsConfirmingAxis(true);
+
+    try {
+      if (!isDbCase(caseItem.id)) {
+        throw new Error("デモ案件では提案の軸を確定できません");
+      }
+
+      const response = await fetch(
+        `/api/proposal/cases/${caseItem.id}/confirm-proposal-axis`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ confirmedAxis: axisInput }),
+        }
+      );
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(body?.error ?? "提案の軸の確定に失敗しました");
+      }
+
+      router.refresh();
+    } catch (error) {
+      setAxisErrorMessage(
+        error instanceof Error ? error.message : "提案の軸の確定に失敗しました"
+      );
+    } finally {
+      setIsConfirmingAxis(false);
+    }
+  }
+
   async function handleConfirm() {
     setErrorMessage(null);
     setIsConfirming(true);
@@ -215,7 +259,73 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
+    <div className="flex flex-col gap-4">
+      {caseItem.evaluationTheme && (
+        <Card>
+          <CardHeader className="flex-row items-center justify-between gap-2">
+            <CardTitle>提案の軸</CardTitle>
+            {isAxisConfirmed ? (
+              <Badge variant="outline">確定済み</Badge>
+            ) : (
+              <Badge variant="outline">仮</Badge>
+            )}
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <p className="text-sm text-muted-foreground">
+              評価テーマ: {caseItem.evaluationTheme}
+              {caseItem.proposalAxisDraft && !isAxisConfirmed
+                ? ` — 新規案件で入力した仮の軸: 「${caseItem.proposalAxisDraft}」`
+                : ""}
+            </p>
+            {isAxisConfirmed ? (
+              <p className="whitespace-pre-wrap text-sm">
+                {caseItem.proposalAxisConfirmed}
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor={`proposal-axis-${caseItem.id}`}>
+                    確定する提案の軸
+                  </Label>
+                  <Textarea
+                    id={`proposal-axis-${caseItem.id}`}
+                    rows={2}
+                    value={axisInput}
+                    disabled={confirmed || !isDbCase(caseItem.id)}
+                    onChange={(event) => setAxisInput(event.target.value)}
+                    placeholder="入札図書を確認したうえで、提案の軸を入力または修正してください"
+                  />
+                </div>
+                {!hasBidDocument && (
+                  <p className="text-xs text-amber-700">
+                    入札図書 PDF をアップロードしてから確定できます。
+                  </p>
+                )}
+                {axisErrorMessage && (
+                  <p className="text-sm text-red-600">{axisErrorMessage}</p>
+                )}
+              </>
+            )}
+          </CardContent>
+          {!isAxisConfirmed && !confirmed && (
+            <CardFooter className="justify-end border-t">
+              <Button
+                onClick={() => void handleConfirmAxis()}
+                disabled={
+                  isConfirmingAxis ||
+                  !isDbCase(caseItem.id) ||
+                  !hasBidDocument ||
+                  !axisInput.trim()
+                }
+              >
+                {isConfirmingAxis ? "確定中..." : "提案の軸を確定"}
+              </Button>
+            </CardFooter>
+          )}
+        </Card>
+      )}
+
+      <div className="grid gap-4 xl:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>入札図書 PDF</CardTitle>
@@ -373,14 +483,19 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
             <p className="text-sm text-muted-foreground">
               {confirmed
                 ? "確定済み — 文案・Wordタブで初稿を生成できます"
-                : "確定後は編集に制限がかかります"}
+                : needsAxisConfirm
+                  ? "提案の軸を確定してから、チェックリストを確定してください"
+                  : "確定後は編集に制限がかかります"}
             </p>
             {errorMessage && (
               <p className="text-sm text-red-600">{errorMessage}</p>
             )}
           </div>
           {canConfirm ? (
-            <Button onClick={handleConfirm} disabled={isConfirming}>
+            <Button
+              onClick={handleConfirm}
+              disabled={isConfirming || needsAxisConfirm}
+            >
               {isConfirming ? "保存中..." : "確定して初稿生成へ"}
             </Button>
           ) : (
@@ -388,6 +503,7 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
           )}
         </CardFooter>
       </Card>
+      </div>
     </div>
   );
 }

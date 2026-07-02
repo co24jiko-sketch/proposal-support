@@ -88,6 +88,12 @@ export interface ProposalCase {
   status: CaseStatus;
   formType: string;
   updatedAt: string;
+  /** 評価テーマ（例: 品質確保） */
+  evaluationTheme: string;
+  /** 提案の軸（仮）。新規案件 Step 1 で入力 */
+  proposalAxisDraft: string;
+  /** 提案の軸（確定）。未設定時は null */
+  proposalAxisConfirmed: string | null;
   basicInput: CaseBasicInput;
   checklistConfirmed: boolean;
   checklistItems: ChecklistItem[];

@@ -45,6 +45,8 @@ export type CreateProposalCaseInput = {
   surveyPurpose: string;
   siteKnownInfo: string;
   surveyPlanOutline: string;
+  evaluationTheme: string;
+  proposalAxisDraft: string;
 };
 
 function assertCanManageCase(auth: AuthContext, caseItem: ProposalCase): void {
@@ -107,6 +109,8 @@ export async function createProposalCase(
       survey_purpose: input.surveyPurpose,
       site_known_info: input.siteKnownInfo,
       survey_plan_outline: input.surveyPlanOutline,
+      evaluation_theme: input.evaluationTheme,
+      proposal_axis_draft: input.proposalAxisDraft,
       assignee_id: auth.userId,
       assignee_name: auth.profile.displayName,
       status: "checklist_pending",
@@ -139,6 +143,13 @@ export async function confirmChecklist(
     return existing;
   }
 
+  if (
+    requiresProposalAxisConfirmation(existing) &&
+    !existing.proposalAxisConfirmed?.trim()
+  ) {
+    throw new Error("提案の軸を確定してからチェックリストを確定してください");
+  }
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("proposal_cases")
@@ -155,6 +166,56 @@ export async function confirmChecklist(
   }
 
   await recordAuditLog(id, auth, "チェックリスト確定");
+
+  return rowToProposalCase(data as ProposalCaseRow);
+}
+
+function requiresProposalAxisConfirmation(caseItem: ProposalCase): boolean {
+  return Boolean(caseItem.evaluationTheme.trim());
+}
+
+export async function confirmProposalAxis(
+  auth: AuthContext,
+  id: string,
+  confirmedAxis: string
+): Promise<ProposalCase> {
+  const existing = await getProposalCaseById(id);
+
+  if (!existing) {
+    throw new Error("案件が見つかりません");
+  }
+
+  assertCanManageCase(auth, existing);
+
+  if (existing.proposalAxisConfirmed) {
+    return existing;
+  }
+
+  if (!existing.bidFilePath) {
+    throw new Error("入札図書 PDF をアップロードしてから提案の軸を確定してください");
+  }
+
+  const axis = confirmedAxis.trim() || existing.proposalAxisDraft.trim();
+  if (!axis) {
+    throw new Error("提案の軸を入力してください");
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("proposal_cases")
+    .update({
+      proposal_axis_confirmed: axis,
+      proposal_axis_confirmed_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(`提案の軸の確定に失敗しました: ${error.message}`);
+  }
+
+  await recordAuditLog(id, auth, "提案の軸を確定", axis);
 
   return rowToProposalCase(data as ProposalCaseRow);
 }

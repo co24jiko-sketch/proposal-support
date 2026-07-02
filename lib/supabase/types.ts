@@ -29,6 +29,10 @@ export interface ProposalCaseRow {
   survey_purpose: string;
   site_known_info: string;
   survey_plan_outline: string;
+  evaluation_theme?: string | null;
+  proposal_axis_draft?: string | null;
+  proposal_axis_confirmed?: string | null;
+  proposal_axis_confirmed_at?: string | null;
   assignee_name: string;
   status: string;
   checklist_confirmed?: boolean;

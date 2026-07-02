@@ -87,6 +87,9 @@ export function rowToProposalCase(
     status: row.status as CaseStatus,
     formType: row.form_type,
     updatedAt: formatDate(row.updated_at),
+    evaluationTheme: row.evaluation_theme ?? "",
+    proposalAxisDraft: row.proposal_axis_draft ?? "",
+    proposalAxisConfirmed: row.proposal_axis_confirmed ?? null,
     basicInput: {
       projectName: row.project_name,
       client: row.client,

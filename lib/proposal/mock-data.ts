@@ -35,6 +35,9 @@ export const mockCases: ProposalCase[] = [
     status: "editing",
     formType: "様式－１０",
     updatedAt: "2026-05-20",
+    evaluationTheme: "品質確保",
+    proposalAxisDraft: "調査精度の向上と成果品質の確保",
+    proposalAxisConfirmed: null,
     basicInput: {
       projectName: "○○地区地質調査業務",
       client: "国土交通省関東地方整備局",
@@ -162,6 +165,9 @@ export const mockCases: ProposalCase[] = [
     status: "pending_manager",
     formType: "様式－１０",
     updatedAt: "2026-05-18",
+    evaluationTheme: "品質確保",
+    proposalAxisDraft: "トンネル涌水リスクに配慮した調査体制",
+    proposalAxisConfirmed: null,
     basicInput: {
       projectName: "△△トンネル地質調査",
       client: "国土交通省近畿地方整備局",
@@ -220,6 +226,9 @@ export const mockCases: ProposalCase[] = [
     status: "approved",
     formType: "様式－１０",
     updatedAt: "2026-05-10",
+    evaluationTheme: "品質確保",
+    proposalAxisDraft: "",
+    proposalAxisConfirmed: "盛土材料の適性を的確に評価する調査計画",
     basicInput: {
       projectName: "□□盛土調査",
       client: "国土交通省九州地方整備局",

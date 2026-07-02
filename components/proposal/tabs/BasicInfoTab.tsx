@@ -26,6 +26,15 @@ export function BasicInfoTab({ caseItem }: { caseItem: ProposalCase }) {
 
     ["工期目安", caseItem.basicInput.schedule],
 
+    ["評価テーマ", caseItem.evaluationTheme || "（未設定）"],
+
+    ["提案の軸（仮）", caseItem.proposalAxisDraft || "（未入力）"],
+
+    [
+      "提案の軸（確定）",
+      caseItem.proposalAxisConfirmed || "（未確定 — チェックリストタブで確定）",
+    ],
+
     ["調査目的・範囲", caseItem.basicInput.surveyPurpose],
 
     ["対象地既知", caseItem.basicInput.siteKnownInfo],
@@ -60,7 +69,7 @@ export function BasicInfoTab({ caseItem }: { caseItem: ProposalCase }) {
 
             className={
 
-              label.includes("調査") || label.includes("対象")
+              label.includes("調査") || label.includes("対象") || label.includes("軸")
 
                 ? "md:col-span-2"
 

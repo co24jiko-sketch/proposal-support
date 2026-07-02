@@ -5,10 +5,18 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { mockLibraryItems } from "@/lib/proposal/mock-data";
+import { EVALUATION_THEMES } from "@/lib/proposal/evaluation-themes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 type FormState = {
@@ -19,6 +27,8 @@ type FormState = {
   surveyPurpose: string;
   siteKnownInfo: string;
   surveyPlanOutline: string;
+  evaluationTheme: string;
+  proposalAxisDraft: string;
 };
 
 const emptyForm: FormState = {
@@ -29,6 +39,8 @@ const emptyForm: FormState = {
   surveyPurpose: "",
   siteKnownInfo: "",
   surveyPlanOutline: "",
+  evaluationTheme: "",
+  proposalAxisDraft: "",
 };
 
 export function NewCaseWizard() {
@@ -57,11 +69,17 @@ export function NewCaseWizard() {
       setError("必須項目を入力してください");
       return false;
     }
+    if (!form.evaluationTheme) {
+      setError("評価テーマを選択してください");
+      return false;
+    }
     setError(null);
     return true;
   }
 
   async function handleCreate() {
+    if (!validateStep1()) return;
+
     setIsSubmitting(true);
     setError(null);
 
@@ -161,13 +179,47 @@ export function NewCaseWizard() {
                 onChange={(e) => updateField("siteKnownInfo", e.target.value)}
               />
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="plan">調査計画の骨子 *</Label>
               <Textarea
                 id="plan"
                 rows={3}
                 value={form.surveyPlanOutline}
                 onChange={(e) => updateField("surveyPlanOutline", e.target.value)}
+              />
+            </div>
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium">文案生成用</p>
+              <p className="text-sm text-muted-foreground">
+                評価テーマは必須です。提案の軸は入札検討のたたき台（仮）として入力できます。
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="evaluationTheme">評価テーマ *</Label>
+              <Select
+                value={form.evaluationTheme || undefined}
+                onValueChange={(value) => updateField("evaluationTheme", value ?? "")}
+              >
+                <SelectTrigger id="evaluationTheme" className="w-full">
+                  <SelectValue placeholder="評価テーマを選択" />
+                </SelectTrigger>
+                <SelectContent>
+                  {EVALUATION_THEMES.map((theme) => (
+                    <SelectItem key={theme.id} value={theme.id}>
+                      {theme.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="proposalAxisDraft">提案の軸（仮）</Label>
+              <Textarea
+                id="proposalAxisDraft"
+                rows={2}
+                placeholder="例: 地質リスクの網羅的抽出と、後続業務への円滑な引継ぎ"
+                value={form.proposalAxisDraft}
+                onChange={(e) => updateField("proposalAxisDraft", e.target.value)}
               />
             </div>
           </CardContent>
