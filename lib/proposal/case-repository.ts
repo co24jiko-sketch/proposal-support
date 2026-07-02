@@ -29,7 +29,9 @@ import {
   instantiateChecklistItems,
 } from "@/lib/proposal/scoring-templates";
 import { generateComplianceItems } from "@/lib/proposal/compliance-check";
+import { generateAiDraftSections } from "@/lib/proposal/ai-draft";
 import { assertDraftReadiness } from "@/lib/proposal/draft-readiness";
+import { extractBidDocumentText } from "@/lib/proposal/bid-document-text";
 import { extractDocxText } from "@/lib/proposal/docx-text";
 import { extractChecklistItemsFromPdf } from "@/lib/proposal/extract-checklist";
 import { rowToProposalCase } from "@/lib/proposal/map-case-row";
@@ -429,7 +431,8 @@ export async function uploadBidDocument(
 
 export async function generateDraft(
   auth: AuthContext,
-  id: string
+  id: string,
+  options: { llmStopped?: boolean } = {}
 ): Promise<ProposalCase> {
   const existing = await getProposalCaseById(id);
 
@@ -445,13 +448,30 @@ export async function generateDraft(
 
   assertDraftReadiness(existing);
 
-  const version = "v1";
+  let bidDocumentText = "";
+  if (existing.bidFilePath) {
+    const { data } = await downloadProposalFile(existing.bidFilePath);
+    const buffer = Buffer.from(await data.arrayBuffer());
+    bidDocumentText = await extractBidDocumentText(buffer);
+  }
+
+  const draftSections = await generateAiDraftSections(
+    existing,
+    bidDocumentText,
+    { llmStopped: options.llmStopped }
+  );
+
+  const caseWithDraft: ProposalCase = { ...existing, draftSections };
+
+  const version = existing.currentWordVersion
+    ? `v${Number.parseInt(existing.currentWordVersion.replace(/\D/g, ""), 10) + 1 || 2}`
+    : "v1";
   const wordPath = wordObjectPath(id, version);
 
   try {
     await uploadProposalFile(
       wordPath,
-      await buildWordDocxBuffer(existing),
+      await buildWordDocxBuffer({ ...caseWithDraft, currentWordVersion: version }),
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     );
   } catch (error) {
@@ -464,6 +484,7 @@ export async function generateDraft(
   const { data, error } = await supabase
     .from("proposal_cases")
     .update({
+      draft_sections: draftSections,
       generated_sections: {
         summary: true,
         focusPoints: true,
@@ -482,7 +503,10 @@ export async function generateDraft(
     throw new Error(`初稿生成の保存に失敗しました: ${error.message}`);
   }
 
-  await recordAuditLog(id, auth, "初稿生成");
+  const auditDetail = draftSections.needsTechnicalReview
+    ? "要技術者確認フラグ付き"
+    : undefined;
+  await recordAuditLog(id, auth, "初稿生成", auditDetail);
   await recordCaseVersion(id, auth, version, "初稿生成", wordPath);
 
   return rowToProposalCase(data as ProposalCaseRow);

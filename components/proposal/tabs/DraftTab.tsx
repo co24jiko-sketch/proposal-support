@@ -11,27 +11,25 @@ import { DraftReadinessChecklist } from "@/components/proposal/DraftReadinessChe
 import { useProposal } from "@/components/proposal/proposal-context";
 
 import { Badge } from "@/components/ui/badge";
-
 import { Button } from "@/components/ui/button";
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
 import {
-
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Table,
-
   TableBody,
-
   TableCell,
-
   TableHead,
-
   TableHeader,
-
   TableRow,
-
 } from "@/components/ui/table";
 
+import type { AiDraftSectionKey } from "@/lib/proposal/ai-draft";
 import type { ProposalCase } from "@/lib/proposal/types";
 import { getDraftReadiness } from "@/lib/proposal/draft-readiness";
 import { isDbCase } from "@/lib/proposal/utils";
@@ -51,7 +49,46 @@ const sections = [
 
 ] as const;
 
+function getSectionPreviewText(
+  caseItem: ProposalCase,
+  key: (typeof sections)[number]["key"]
+): string | null {
+  const content = caseItem.draftSections?.[key as AiDraftSectionKey];
+  return content?.trim() ? content : null;
+}
 
+function getSectionPreviewMessage(
+  caseItem: ProposalCase,
+  key: (typeof sections)[number]["key"]
+): string {
+  const previewText = getSectionPreviewText(caseItem, key);
+  if (previewText) return previewText;
+
+  const generated =
+    caseItem.generatedSections[
+      key as keyof typeof caseItem.generatedSections
+    ];
+  if (generated) {
+    return [
+      "この章の AI 文案がデータベースに保存されていません。",
+      "Step 6 導入前に生成した初稿の可能性があります。",
+      "「初稿を一括生成」をもう一度実行してください。",
+      "（Supabase で add_draft_sections.sql の実行と OPENAI_API_KEY または PROPOSAL_AI_STUB=true の設定も確認してください）",
+    ].join("\n");
+  }
+
+  return "まだ生成されていません。「初稿を一括生成」を実行してください。";
+}
+
+function canPreviewSection(
+  caseItem: ProposalCase,
+  key: (typeof sections)[number]["key"]
+): boolean {
+  if (getSectionPreviewText(caseItem, key)) return true;
+  return caseItem.generatedSections[
+    key as keyof typeof caseItem.generatedSections
+  ];
+}
 
 function getReimportBlockReason(caseItem: ProposalCase): string | null {
 
@@ -75,6 +112,9 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isReimporting, setIsReimporting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [previewSection, setPreviewSection] = useState<
+    (typeof sections)[number] | null
+  >(null);
 
   const draftReadiness = getDraftReadiness(caseItem, llmStopped);
   const generateBlockReason = draftReadiness.blockReason;
@@ -97,7 +137,11 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
       if (isDbCase(caseItem.id)) {
         const response = await fetch(
           `/api/proposal/cases/${caseItem.id}/generate-draft`,
-          { method: "POST" }
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ llmStopped }),
+          }
         );
 
         if (!response.ok) {
@@ -178,6 +222,12 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
 
       <DraftReadinessChecklist readiness={draftReadiness} />
 
+      {caseItem.draftSections?.needsTechnicalReview && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          要技術者確認: 材料不足または表現の確認が必要な下書きです。提出前に担当技術者が内容を確認してください。
+        </p>
+      )}
+
       <Card className={cn(phaseAActive && "ring-2 ring-primary/20")}>
 
         <CardHeader>
@@ -217,61 +267,48 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
             <TableBody>
 
               {sections.map((section) => {
-
                 const generated =
-
                   caseItem.generatedSections[
-
                     section.key as keyof typeof caseItem.generatedSections
-
                   ];
+                const canPreview = canPreviewSection(caseItem, section.key);
 
                 return (
-
                   <TableRow key={section.key}>
-
                     <TableCell>{section.label}</TableCell>
-
                     <TableCell>
-
                       <Badge variant={generated ? "secondary" : "outline"}>
-
                         {generated ? "生成済" : "未生成"}
-
                       </Badge>
-
                     </TableCell>
-
-                    <TableCell className="space-x-2 text-right">
-
-                      <Button size="sm" variant="ghost">
-
-                        プレビュー
-
-                      </Button>
-
-                      <Button
-
-                        size="sm"
-
-                        variant="outline"
-
-                        disabled={!caseItem.checklistConfirmed || llmStopped}
-
-                      >
-
-                        <RefreshCw />
-
-                        再生成
-
-                      </Button>
-
+                    <TableCell className="text-right">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={!canPreview}
+                          onClick={() => setPreviewSection(section)}
+                        >
+                          プレビュー
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={
+                            !draftReadiness.canGenerate ||
+                            isGenerating ||
+                            llmStopped
+                          }
+                          onClick={() => void handleGenerateDraft()}
+                        >
+                          <RefreshCw />
+                          再生成
+                        </Button>
+                      </div>
                     </TableCell>
-
                   </TableRow>
-
                 );
-
               })}
 
             </TableBody>
@@ -339,7 +376,26 @@ export function DraftTab({ caseItem }: { caseItem: ProposalCase }) {
 
       </Card>
 
-
+      <Dialog
+        open={previewSection !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreviewSection(null);
+        }}
+      >
+        <DialogContent className="flex max-h-[80vh] max-w-2xl flex-col gap-3">
+          <DialogHeader>
+            <DialogTitle>{previewSection?.label ?? "プレビュー"}</DialogTitle>
+            <DialogDescription>
+              AI が生成した下書きです。提出前に担当技術者が内容を確認してください。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto whitespace-pre-wrap text-sm">
+            {previewSection
+              ? getSectionPreviewMessage(caseItem, previewSection.key)
+              : null}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Card className={cn(phaseBActive && "ring-2 ring-primary/20")}>
 

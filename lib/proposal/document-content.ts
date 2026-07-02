@@ -96,6 +96,7 @@ function wrapText(
 export async function buildWordDocxBuffer(caseItem: ProposalCase): Promise<Buffer> {
   const { basicInput } = caseItem;
   const versionLabel = caseItem.currentWordVersion ?? "v1";
+  const draft = caseItem.draftSections;
 
   const doc = new Document({
     sections: [
@@ -110,12 +111,33 @@ export async function buildWordDocxBuffer(caseItem: ProposalCase): Promise<Buffe
           labeledParagraph("場所", basicInput.location),
           labeledParagraph("工期", basicInput.schedule),
           labeledParagraph("版", versionLabel),
+          ...(caseItem.evaluationTheme
+            ? [labeledParagraph("評価テーマ", caseItem.evaluationTheme)]
+            : []),
           sectionHeading("１）提案の概要"),
-          bodyParagraph(basicInput.surveyPurpose),
+          bodyParagraph(
+            draft?.summary ?? basicInput.surveyPurpose
+          ),
+          sectionHeading("① 着目点"),
+          bodyParagraph(draft?.focusPoints ?? "（未生成）"),
           sectionHeading("② 詳細な内容"),
-          bodyParagraph(basicInput.surveyPlanOutline),
-          sectionHeading("既知の地質情報"),
-          bodyParagraph(basicInput.siteKnownInfo),
+          bodyParagraph(
+            draft?.detail ?? basicInput.surveyPlanOutline
+          ),
+          sectionHeading("③ 効果"),
+          bodyParagraph(draft?.effects ?? "（未生成）"),
+          ...(draft?.needsTechnicalReview
+            ? [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "※ 要技術者確認: 材料不足または表現の確認が必要です",
+                      bold: true,
+                    }),
+                  ],
+                }),
+              ]
+            : []),
         ],
       },
     ],
@@ -195,13 +217,16 @@ export async function buildSubmissionPdfBuffer(
   }
 
   drawHeading("１）提案の概要");
-  drawWrapped(basicInput.surveyPurpose);
+  drawWrapped(caseItem.draftSections?.summary ?? basicInput.surveyPurpose);
+
+  drawHeading("① 着目点");
+  drawWrapped(caseItem.draftSections?.focusPoints ?? "（未生成）");
 
   drawHeading("② 詳細な内容");
-  drawWrapped(basicInput.surveyPlanOutline);
+  drawWrapped(caseItem.draftSections?.detail ?? basicInput.surveyPlanOutline);
 
-  drawHeading("既知の地質情報");
-  drawWrapped(basicInput.siteKnownInfo);
+  drawHeading("③ 効果");
+  drawWrapped(caseItem.draftSections?.effects ?? "（未生成）");
 
   return Buffer.from(await pdfDoc.save());
 }

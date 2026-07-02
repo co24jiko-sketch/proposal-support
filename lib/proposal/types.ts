@@ -79,6 +79,17 @@ export interface ApprovalRecord {
   comment?: string;
 }
 
+/** AI が生成した様式－１０の4欄文案（下書き） */
+export interface DraftSectionsContent {
+  summary: string;
+  focusPoints: string;
+  detail: string;
+  effects: string;
+  /** 禁止表現検出や材料不足時に true */
+  needsTechnicalReview: boolean;
+  generatedAt: string;
+}
+
 export interface ProposalCase {
   id: string;
   projectName: string;
@@ -116,6 +127,8 @@ export interface ProposalCase {
     detail: boolean;
     effects: boolean;
   };
+  /** AI 生成文案。未生成時は null / undefined */
+  draftSections?: DraftSectionsContent | null;
 }
 
 export interface LibraryItem {

@@ -6,6 +6,7 @@ import type {
   CaseVersion,
   ChecklistItem,
   ComplianceItem,
+  DraftSectionsContent,
   ProposalCase,
 } from "@/lib/proposal/types";
 
@@ -24,6 +25,29 @@ function parseChecklistItems(value: unknown): ChecklistItem[] {
 function parseComplianceItems(value: unknown): ComplianceItem[] {
   if (!Array.isArray(value)) return [];
   return value as ComplianceItem[];
+}
+
+function parseDraftSections(value: unknown): DraftSectionsContent | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  const summary = typeof row.summary === "string" ? row.summary : "";
+  const focusPoints =
+    typeof row.focusPoints === "string" ? row.focusPoints : "";
+  const detail = typeof row.detail === "string" ? row.detail : "";
+  const effects = typeof row.effects === "string" ? row.effects : "";
+  if (!summary && !focusPoints && !detail && !effects) return null;
+
+  return {
+    summary,
+    focusPoints,
+    detail,
+    effects,
+    needsTechnicalReview: row.needsTechnicalReview === true,
+    generatedAt:
+      typeof row.generatedAt === "string"
+        ? row.generatedAt
+        : new Date().toISOString(),
+  };
 }
 
 function parseGeneratedSections(
@@ -123,5 +147,6 @@ export function rowToProposalCase(
     bidDocumentName: row.bid_document_name ?? undefined,
     bidFilePath: row.bid_file_path ?? undefined,
     generatedSections: parseGeneratedSections(row.generated_sections),
+    draftSections: parseDraftSections(row.draft_sections),
   };
 }

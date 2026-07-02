@@ -1,6 +1,7 @@
 import type {
   ChecklistItem,
   ComplianceItem,
+  DraftSectionsContent,
 } from "@/lib/proposal/types";
 
 export interface GeneratedSectionsRow {
@@ -39,6 +40,7 @@ export interface ProposalCaseRow {
   checklist_items?: ChecklistItem[] | null;
   compliance_items?: ComplianceItem[] | null;
   generated_sections?: GeneratedSectionsRow | null;
+  draft_sections?: DraftSectionsContent | null;
   current_word_version?: string | null;
   word_file_path?: string | null;
   pdf_file_path?: string | null;
