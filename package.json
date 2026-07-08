@@ -11,7 +11,9 @@
     "format:check": "prettier --check .",
     "check:radius": "node scripts/check-radius-drift.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "docs:overview": "npx --yes serve docs -l 3456",
+    "docs:overview:open": "npx --yes serve docs -l 3456 --open /proposal-overview-explainer.html"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

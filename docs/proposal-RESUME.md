@@ -1,6 +1,6 @@
 # 技術提案書サポート — 次回再開用メモ
 
-最終更新: 2026-06-20（Phase 1〜4 完了・1 人通し確認 OK・JST 表示修正済み）
+最終更新: 2026-07-02（Phase 5 記載ルールチェック・UI整理・機能全体図解公開）
 
 ## クイックスタート
 
@@ -22,6 +22,10 @@ npm run dev
 | 型・ラベル・モック | `lib/proposal/` |
 | 再開用メモ（本ファイル） | `docs/proposal-RESUME.md` |
 | **パイロット運用手順** | `docs/proposal-pilot-guide.md` |
+| **AI 文案入力設計** | `docs/proposal-ai-inputs.md` |
+| **機能全体図解（HTML）** | `docs/proposal-overview-explainer.html` |
+| 機能全体図解（キャプチャ） | `docs/proposal-overview-screenshots/` |
+| キャプチャ再取得スクリプト | `scripts/capture-proposal-screenshots.mjs` |
 | セッション用スライド画像 | `docs/proposal-storage-slide.png` |
 | 保存場所の説明図解（HTML） | `docs/proposal-storage-explainer.html` |
 | 保存場所の説明図解（画像） | `docs/proposal-storage-explainer.png` |
@@ -82,23 +86,40 @@ npm run dev
 - `components/proposal/tabs/*.tsx`
 - `components/proposal/NewCaseWizard.tsx`
 
-## 図解（別リポジトリ）
+## 図解・公開 URL
 
-| 内容 | ローカル | 公開URL |
+| 内容 | ローカル | 公開 URL |
 |---|---|---|
-| ツール案説明（キャプチャ付き） | `C:\Users\haram\src\creating-visual-explainers\output\proposal-tool-concept.html` | https://diagram-proposal-tool-concept.surge.sh |
-| 作業フロー図解 | `...\output\proposal-workflow.html` | 未公開 |
-| スクリーンショット | `...\output\proposal-tool-screenshots\` | — |
+| **機能全体図解（最新）** | `docs/proposal-overview-explainer.html` | https://diagram-proposal-overview.surge.sh |
+| 保存場所の図解 | `docs/proposal-storage-explainer.html` | （ローカル／surge 未再公開） |
+| 旧ツール案説明 | `creating-visual-explainers/output/proposal-tool-concept.html` | https://diagram-proposal-tool-concept.surge.sh |
 
-図解の再公開（PowerShell）:
+### 機能全体図解の見方・更新
 
 ```powershell
-cd C:\Users\haram\src\creating-visual-explainers\output
-# HTML + 画像フォルダを一時ディレクトリにまとめて index.html にして surge する
-npx --yes surge <一時フォルダ> --domain diagram-proposal-tool-concept.surge.sh
+cd C:\Users\haram\src\workspace-ui-kit
+npm run dev
+# → http://localhost:3000/docs/proposal-overview-explainer.html
+# または
+npm run docs:overview:open
 ```
 
-公開履歴: `C:\Users\haram\src\creating-visual-explainers\deploy-history.log`
+キャプチャ再取得（件名は ○○地区地質調査業務 等に匿名化）:
+
+```powershell
+node scripts/capture-proposal-screenshots.mjs
+```
+
+Surge 再公開:
+
+```powershell
+$deployDir = Join-Path $env:TEMP "proposal-overview-deploy"
+Remove-Item $deployDir -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path $deployDir -Force | Out-Null
+Copy-Item docs\proposal-overview-explainer.html (Join-Path $deployDir "index.html")
+Copy-Item docs\proposal-overview-screenshots (Join-Path $deployDir "proposal-overview-screenshots") -Recurse
+npx --yes surge $deployDir --domain diagram-proposal-overview.surge.sh
+```
 
 ## 教材ステップの進捗（「画面に記憶を持たせる」）
 
@@ -248,9 +269,11 @@ where assignee_id is null;
 
 ## 次回やること（優先度順）
 
-1. **関係者パイロット** — 人・日程が決まったら `docs/proposal-pilot-guide.md` に沿って実施（Supabase で担当者アカウント作成）
-2. **採点基準マスタ整備** — 正式な基準を `lib/proposal/scoring-templates.ts` に登録（または DB 化）
-3. **任意** — 見た目調整、図解 PNG 更新（HTML は最新）、本番 Supabase 環境、Word 手修正再取込
+1. ~~**未 push 分のコミット**~~ — 図解 HTML・キャプチャ・`capture-proposal-screenshots.mjs`・`package.json`・ドキュメント整合（2026-07-08 完了）
+2. ~~**ドキュメント整合**~~ — `proposal-pilot-guide.md` / `proposal-ai-inputs.md` を現行 UI に合わせて更新（2026-07-08 完了）
+3. **関係者パイロット** — 日程が決まったら `docs/proposal-pilot-guide.md` に沿って実施
+4. **Step 8〜9（未着手）** — 過去実績・関連業務メモ欄、留意事項テキスト欄（`docs/proposal-ai-inputs.md` 参照）
+5. **任意** — Word 手修正再取込、本番 Supabase 環境、記載ルール拡張（留意事項との対応表示）
 
 ### Phase 3 実装サマリ（2026-06-20 完了）
 
@@ -274,13 +297,15 @@ where assignee_id is null;
 
 ※ 支社長ログイン失敗時: Dashboard でユーザーを削除→再作成（Auto Confirm）→ SQL で `role = 'director'` を設定。`Send password recovery` はメール rate limit で失敗することがある。
 
-### 承認〜PDF の流れ（担当者視点）
+### 承認〜PDF の流れ（担当者視点・現行 UI）
 
-1. チェックリストで **採点基準マスタを適用** → **確定して初稿生成へ**
-2. 文案タブで **初稿を一括生成** → **再取込して適合チェックへ**
-3. **適合チェック**タブ **「承認を申請する」**（△×ありは理由必須）
+1. チェックリストで **入札図書 PDF アップロード** → **提案の軸を確定** → **確定して初稿生成へ**
+2. 文案タブで **初稿を一括生成**（生成前チェックあり）→ 記載ルールチェックへ
+3. **記載ルールチェック**タブで ○△× 確認（初稿生成時に自動実行）→ **承認を申請する**
 4. 部長 → 支社長が各アカウントで **承認**タブから承認
 5. 担当者で **承認**タブ **「提出版 PDF を出力」**
+
+※ **採点基準マスタ UI は廃止**。チェックは **記載ルール9項目**（`lib/proposal/guideline-rules.ts`）のハイブリッド判定。
 
 ### DB 案件の開き方（UUID は画面に出ない）
 
@@ -350,40 +375,60 @@ npm run dev
 C:\Users\haram\src\workspace-ui-kit\docs\proposal-RESUME.md を読んで、
 技術提案書サポートの続きを進めてください。
 
-【完了済み（2026-06-20）】
-- Phase 1 認証: Supabase 設定・3ロール・RLS 完了
-- Phase 2 Word/PDF: 実 .docx / 実 PDF（日本語）生成・Storage 保存・DL 完了
-- Phase 3: 入札図書 PDF・採点基準マスタ・適合チェック本実装（公開確認 OK）
-- Phase 4: 監査ログ・版履歴 DB 永続化（`add_case_history.sql` 実行済み・履歴タブ OK）
-- パイロット準備: `docs/proposal-pilot-guide.md` 作成、図解 HTML 更新、GitHub push 済み
-- 1 人通し確認: 公開サイトで担当者→部長→支社長→PDF→履歴まで OK
-- 履歴時刻: 日本時間（JST）表示（`9077f9f`・公開確認 OK）
-- 入札図書 PDF: 4MB 以下（Vercel 制限）
-- 公開: https://proposal-support.vercel.app/proposal/login
-- 最新 push: `9077f9f`（GitHub: `git push github main`）
+【完了済み（〜2026-07-02）】
+- Phase 1〜4: 認証・Word/PDF・承認フロー・履歴（公開サイト通し確認 OK）
+- Phase 5: AI 文案生成（Claude API）、様式－１０流し込み、生成前チェック
+- 記載ルールチェック: 仮採点基準を廃止し固定9ルール＋Claude（`43f4b25`・公開確認 OK）
+- UI: 案件一覧タブ統合・「続きから」カード削除、ヘッダーアプリ名をロゴリンク化（`8c4afbf` push 済み）
+- 図解: `docs/proposal-overview-explainer.html` 作成、キャプチャ匿名化、Surge 公開
+  → https://diagram-proposal-overview.surge.sh
+- 設計正本: `docs/proposal-ai-inputs.md`
+
+【現行 UI の前提（重要）】
+- チェックリストタブ: 入札図書 PDF ＋ 提案の軸の確定（採点基準マスタ UI は無し）
+- 記載ルールチェックタブ: 旧「適合チェック」の代替（採点項目マスタではない）
+- push 先: `git push github main`（co24jiko-sketch/proposal-support → Vercel）
+
+【未コミット（ローカルのみ）】
+- ~~図解・キャプチャ・スクリプト・package.json~~ → 2026-07-08 コミット済み
+- `public/docs` — docs へのジャンクション（**コミットしない**。ローカル専用。図解確認は `npm run docs:overview:open` または Surge）
 
 【パイロット用アカウント】
 - 部長: manager@pilot.local / PilotManager2026
 - 支社長: director@pilot.local / PilotDirector2026
 - 担当者: Supabase で個別作成（assignee ロール）
-- ※ 支社長ログイン失敗時: Dashboard でユーザー再作成 → SQL で role=director
-
-【後回し・未着手】
-- 関係者パイロット（人が集まったタイミングで実施）
-- 採点基準マスタの正式登録（現状は仮マスタ 2 件）
-- 見た目調整（Phase 外・必要なら画面指定で）
 
 【次の作業（優先度順）】
-1. 関係者パイロット（可能になったら）
-2. 採点基準マスタ整備
-3. 任意: 見た目調整、図解 PNG 更新、本番 Supabase 環境
+1. 未コミット分の push（希望があれば）
+2. `proposal-pilot-guide.md` 等のドキュメントを現行 UI に合わせて更新
+3. Step 8〜9: 過去実績欄・留意事項テキスト欄
+4. 任意: Word 手修正再取込、本番 Supabase、関係者パイロット
 
 【進め方の希望】
 手順は1つずつ指示して、できたか確認してから次に進めてください。
 npm run dev が止まっていたら起動してください（3000 固まり時は古いプロセスを止めてから）。
+図解の確認: https://diagram-proposal-overview.surge.sh
 ```
 
 ## 作業終了時メモ
+
+### 2026-07-02（UI整理・機能全体図解・公開）
+
+- **記載ルールチェック** — `43f4b25` push、公開サイトで文案生成・チェック・Word DL 成功確認済み
+- **Claude API** — Sonnet 5 対応（temperature 削除、JSON schema）、`ANTHROPIC_API_KEY` 設定済み
+- **UI 整理（`8c4afbf` push 済み）**
+  - `AppHeader`: アプリ名をロゴリンク化、ナビと Separator で区別
+  - `CaseListPage`: 「自分の案件/すべて」「承認待ち」タブ廃止→1表に統合
+  - `ResumeCaseCard.tsx` 削除
+- **機能全体図解（ローカル・Surge 公開済み、未 git push）**
+  - `docs/proposal-overview-explainer.html` — 新入社員向けに再構成（2026-07-03）
+    - 保持できるデータ（基本情報・進行・ファイル・履歴）
+    - 3つの保存場所（DB / Storage / GitHub）と操作→保存先の対応
+    - 画面キャプチャ・設計の意識・今後の拡張
+  - `scripts/capture-proposal-screenshots.mjs` — キャプチャ時に件名等を匿名化
+  - 公開: https://diagram-proposal-overview.surge.sh
+  - ローカル: `npm run dev` → `/docs/proposal-overview-explainer.html`
+- **次回最初** — 未コミット分の整理・push
 
 ### 2026-06-20（作業終了・Phase 1〜4 完了）
 

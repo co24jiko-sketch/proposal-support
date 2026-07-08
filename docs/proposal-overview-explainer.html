@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>技術提案書サポート — 機能とデータの図解</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #fff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --blue: #2563eb;
+      --blue-soft: #eff6ff;
+      --green: #059669;
+      --green-soft: #ecfdf5;
+      --orange: #ea580c;
+      --orange-soft: #fff7ed;
+      --violet: #7c3aed;
+      --violet-soft: #f5f3ff;
+      --amber: #d97706;
+      --amber-soft: #fffbeb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 16px 12px 36px;
+      font-size: 0.84rem;
+    }
+    .wrap { max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 1.35rem; text-align: center; margin-bottom: 4px; }
+    .subtitle {
+      text-align: center;
+      color: var(--muted);
+      margin-bottom: 12px;
+      font-size: 0.82rem;
+    }
+    .intro {
+      background: var(--blue-soft);
+      border: 1px solid #93c5fd;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+    .intro strong { color: var(--text); }
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 20px;
+    }
+    .badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--muted);
+    }
+    .badge.live { border-color: #86efac; background: var(--green-soft); color: #047857; }
+    section { margin-bottom: 24px; }
+    h2 {
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 2px solid var(--border);
+    }
+    .lead {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+    ul.compact { padding-left: 1.15em; color: var(--muted); font-size: 0.8rem; }
+    ul.compact li { margin-bottom: 4px; }
+    ul.compact strong { color: var(--text); }
+
+    .tag {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      margin-right: 3px;
+      vertical-align: middle;
+    }
+    .tag.db { background: #dbeafe; color: #1e40af; }
+    .tag.st { background: #ffedd5; color: #9a3412; }
+    .tag.gh { background: #d1fae5; color: #065f46; }
+
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      margin-top: 6px;
+    }
+    .flow span {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      white-space: nowrap;
+    }
+    .flow span.hl { background: var(--blue-soft); border-color: #93c5fd; color: #1d4ed8; }
+    .flow .arr { color: var(--muted); font-size: 0.75rem; border: none; background: none; padding: 0; }
+
+    /* データカテゴリ */
+    .data-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    @media (max-width: 640px) { .data-grid { grid-template-columns: 1fr; } }
+    .data-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: var(--card);
+    }
+    .data-card h3 {
+      font-size: 0.78rem;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px dashed var(--border);
+    }
+    .data-card ul { padding-left: 1.1em; font-size: 0.76rem; color: var(--muted); }
+    .data-card li { margin-bottom: 3px; }
+
+    /* 3つの保存場所 */
+    .storage-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    @media (max-width: 720px) { .storage-grid { grid-template-columns: 1fr; } }
+    .storage-box {
+      border-radius: 8px;
+      border: 2px solid var(--border);
+      overflow: hidden;
+      font-size: 0.76rem;
+    }
+    .storage-box .head {
+      padding: 8px 10px;
+      font-weight: 700;
+      font-size: 0.78rem;
+      color: #fff;
+    }
+    .storage-box.db .head { background: var(--blue); }
+    .storage-box.st .head { background: var(--orange); }
+    .storage-box.gh .head { background: var(--green); }
+    .storage-box .body { padding: 8px 10px; color: var(--muted); background: var(--card); }
+    .storage-box .analogy {
+      background: #f1f5f9;
+      border-radius: 6px;
+      padding: 6px 8px;
+      margin-bottom: 6px;
+      font-size: 0.74rem;
+    }
+    .storage-box .analogy strong { color: var(--text); }
+    .storage-box ul { padding-left: 1.1em; margin-top: 4px; }
+    .storage-box li { margin-bottom: 3px; }
+
+    /* 操作→保存先 */
+    .save-steps { display: flex; flex-direction: column; gap: 8px; }
+    .save-step {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .save-step .num {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      background: var(--blue);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+    .save-step strong { color: var(--text); }
+
+    table.simple {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.76rem;
+      margin-top: 8px;
+    }
+    table.simple th, table.simple td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    table.simple th { background: #f8fafc; color: var(--muted); width: 28%; }
+
+    figure {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    figure img { width: 100%; display: block; border-bottom: 1px solid var(--border); }
+    figcaption { padding: 6px 10px; font-size: 0.76rem; color: var(--muted); }
+    figcaption b { color: var(--text); margin-right: 6px; }
+    .shots {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    @media (max-width: 640px) { .shots { grid-template-columns: 1fr; } }
+    .shots figure { margin-bottom: 0; }
+
+    .cols-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    @media (max-width: 640px) { .cols-2 { grid-template-columns: 1fr; } }
+    .cols-2 h3 {
+      font-size: 0.78rem;
+      margin-bottom: 6px;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    .cols-2 .ingenuity h3 { background: var(--green-soft); color: #047857; }
+    .cols-2 .future h3 { background: var(--violet-soft); color: #6d28d9; }
+    .cols-2 ul { padding-left: 1.1em; color: var(--muted); font-size: 0.76rem; }
+    .cols-2 li { margin-bottom: 4px; }
+
+    .summary {
+      background: linear-gradient(135deg, var(--blue-soft), var(--green-soft));
+      border: 1px solid #93c5fd;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 16px;
+      text-align: center;
+    }
+    .summary strong { color: var(--text); }
+    .footer {
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .footer a { color: var(--blue); }
+    @media print { body { padding: 0; } figure { break-inside: avoid; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>技術提案書サポート</h1>
+    <p class="subtitle">入札の技術提案書（様式－１０）を、画面操作で作成・承認・提出まで進める Web アプリ</p>
+
+    <div class="intro">
+      <strong>新入社員向けの読み方</strong> —
+      このページでは「何ができるツールか」「どんなデータを残せるか」「どこに・なぜ保存するか」を順に説明します。
+      技術用語は最小限にし、<span class="tag db">DB</span>＝表に書けるデータ、
+      <span class="tag st">Storage</span>＝ファイル置き場、
+      <span class="tag gh">GitHub</span>＝プログラムの設計図、と覚えてください。
+    </div>
+
+    <div class="badges">
+      <span class="badge live">公開デモ稼働中</span>
+      <span class="badge">担当者・部長・支社長の3ロール</span>
+      <span class="badge">2026-07</span>
+    </div>
+
+    <!-- 何のツールか -->
+    <section>
+      <h2>このツールは何をする？</h2>
+      <p class="lead">地質調査などの入札で、技術提案書をチームで仕上げるための「作業台」です。</p>
+      <div class="panel">
+        <ul class="compact">
+          <li><strong>担当技術者</strong> — 案件を登録し、入札図書を確認、AI で文案の下書きを作り、承認を申請する</li>
+          <li><strong>部長・支社長</strong> — 内容を確認して承認（または差し戻し）する</li>
+          <li><strong>AI（Claude）</strong> — 4欄の文案下書きと記載ルールチェックを補助。最終責任は人間</li>
+        </ul>
+        <div class="flow" style="margin-top:10px">
+          <span>新規案件</span><span class="arr">→</span>
+          <span>入札図書・軸確定</span><span class="arr">→</span>
+          <span class="hl">AI 初稿</span><span class="arr">→</span>
+          <span class="hl">記載ルール</span><span class="arr">→</span>
+          <span>承認</span><span class="arr">→</span>
+          <span>提出 PDF</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 保持できるデータ -->
+    <section>
+      <h2>どんなデータを保持できる？</h2>
+      <p class="lead">ブラウザを閉じても残るものと、ファイルとして残るものがあります。1案件＝1行の表＋関連ファイル、と考えると分かりやすいです。</p>
+      <div class="data-grid">
+        <div class="data-card">
+          <h3>📋 案件の基本情報</h3>
+          <ul>
+            <li>工事名・発注者・場所・工期</li>
+            <li>調査目的・既知の地質情報・計画の骨子</li>
+            <li>評価テーマ・提案の軸（仮／確定）</li>
+            <li>主担当・現在のステータス（編集中・承認待ち等）</li>
+          </ul>
+        </div>
+        <div class="data-card">
+          <h3>✅ 作業の進行・判定</h3>
+          <ul>
+            <li>チェックリスト確定したか（入札図書・軸の確定）</li>
+            <li>文案4欄の生成済みフラグ（概要・着目点・詳細・効果）</li>
+            <li>記載ルールチェック結果（○△× と理由）</li>
+            <li>承認申請の理由・差戻し理由</li>
+          </ul>
+        </div>
+        <div class="data-card">
+          <h3>📎 ファイル</h3>
+          <ul>
+            <li>入札図書 PDF（アップロード）</li>
+            <li>生成した Word（様式－１０）</li>
+            <li>提出版 PDF（承認後に出力）</li>
+          </ul>
+        </div>
+        <div class="data-card">
+          <h3>📝 履歴・誰が何をしたか</h3>
+          <ul>
+            <li>版履歴（v1 初稿、v2 チェック後…）</li>
+            <li>操作ログ（作成・軸確定・承認申請・承認 等）</li>
+            <li>部長・支社長の承認日時・コメント</li>
+            <li>ログインユーザーの名前・役割（担当／部長／支社長）</li>
+          </ul>
+        </div>
+      </div>
+      <p class="lead" style="margin-top:8px">
+        ※ AI が生成した文案の本文も <span class="tag db">DB</span> に保存されます。再ログインや別 PC から同じ案件を開いても続きから作業できます。
+      </p>
+    </section>
+
+    <!-- どこに・なぜ保存 -->
+    <section>
+      <h2>どこに・なぜ保存する？</h2>
+      <p class="lead">保存場所は3つだけ。中身の種類で分けています（全部1か所に入れないのは、探しやすさ・安全性・役割分担のためです）。</p>
+
+      <div class="storage-grid">
+        <div class="storage-box db">
+          <div class="head">① Supabase（DB）</div>
+          <div class="body">
+            <div class="analogy">例えると → <strong>業務台帳・Excel の表</strong></div>
+            <strong>何を入れる？</strong>
+            <ul>
+              <li>案件名・発注者・進捗</li>
+              <li>提案の軸・記載ルール結果</li>
+              <li>承認・差戻しの記録</li>
+              <li>版履歴・操作ログ</li>
+            </ul>
+            <strong style="display:block;margin-top:6px">なぜ？</strong>
+            <ul>
+              <li>表形式のデータ向き</li>
+              <li>検索・一覧・権限制御がしやすい</li>
+            </ul>
+          </div>
+        </div>
+        <div class="storage-box st">
+          <div class="head">② Storage（ファイル）</div>
+          <div class="body">
+            <div class="analogy">例えると → <strong>共有ドライブ・書類棚</strong></div>
+            <strong>何を入れる？</strong>
+            <ul>
+              <li>入札図書 PDF</li>
+              <li>生成 Word</li>
+              <li>提出 PDF</li>
+            </ul>
+            <strong style="display:block;margin-top:6px">なぜ？</strong>
+            <ul>
+              <li>PDF/Word はファイルのまま保管</li>
+              <li>ダウンロード・再取得が簡単</li>
+            </ul>
+          </div>
+        </div>
+        <div class="storage-box gh">
+          <div class="head">③ GitHub（コード）</div>
+          <div class="body">
+            <div class="analogy">例えると → <strong>アプリの設計図・レシピ</strong></div>
+            <strong>何を入れる？</strong>
+            <ul>
+              <li>画面の見た目・ボタンの動き</li>
+              <li>記載ルール9項目の定義</li>
+              <li>API の処理ロジック</li>
+            </ul>
+            <strong style="display:block;margin-top:6px">なぜ？</strong>
+            <ul>
+              <li>開発者がバージョン管理</li>
+              <li>Vercel がここから Web 公開</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <strong style="font-size:0.82rem">画面で操作すると、こう保存される</strong>
+        <div class="save-steps" style="margin-top:8px">
+          <div class="save-step">
+            <span class="num">1</span>
+            <p><strong>新規案件を登録</strong> → <span class="tag db">DB</span> の <code>proposal_cases</code> に1行追加（工事名・発注者など）</p>
+          </div>
+          <div class="save-step">
+            <span class="num">2</span>
+            <p><strong>入札図書 PDF をアップロード</strong> → ファイル本体は <span class="tag st">Storage</span>、ファイル名と場所の情報は <span class="tag db">DB</span></p>
+          </div>
+          <div class="save-step">
+            <span class="num">3</span>
+            <p><strong>提案の軸を確定・チェックリスト確定</strong> → <span class="tag db">DB</span> の該当列を更新（あとから変更しにくくするため「確定」フラグあり）</p>
+          </div>
+          <div class="save-step">
+            <span class="num">4</span>
+            <p><strong>AI で初稿生成</strong> → 文案テキストは <span class="tag db">DB</span>、Word は <span class="tag st">Storage</span>、操作は <span class="tag db">操作ログ</span> に記録</p>
+          </div>
+          <div class="save-step">
+            <span class="num">5</span>
+            <p><strong>記載ルールチェック</strong> → 判定結果（○△×）を <span class="tag db">DB</span> に保存。ルールの定義そのものは <span class="tag gh">GitHub</span> のコード側</p>
+          </div>
+          <div class="save-step">
+            <span class="num">6</span>
+            <p><strong>承認・PDF 出力</strong> → 承認者・日時は <span class="tag db">DB</span>、提出 PDF は <span class="tag st">Storage</span></p>
+          </div>
+        </div>
+      </div>
+
+      <table class="simple">
+        <tr>
+          <th>観点</th>
+          <th><span class="tag db">DB</span></th>
+          <th><span class="tag st">Storage</span></th>
+          <th><span class="tag gh">GitHub</span></th>
+        </tr>
+        <tr>
+          <th>入れるもの</th>
+          <td>文字・数字・状態<br>（表に書けるもの）</td>
+          <td>PDF・Word<br>（ファイル本体）</td>
+          <td>プログラム<br>（画面・ルール定義）</td>
+        </tr>
+        <tr>
+          <th>誰が変える？</th>
+          <td>担当者が画面操作<br>（承認者は承認のみ）</td>
+          <td>アップロード・生成時<br>に自動で増える</td>
+          <td>開発者がコード修正<br>（日常業務では触らない）</td>
+        </tr>
+        <tr>
+          <th>閉じても残る？</th>
+          <td>はい（クラウド DB）</td>
+          <td>はい（クラウド Storage）</td>
+          <td>はい（ただし案件データではない）</td>
+        </tr>
+      </table>
+    </section>
+
+    <!-- 画面 -->
+    <section>
+      <h2>画面のイメージ</h2>
+      <p class="lead">左に進捗、右に作業タブ。行やタブをクリックするだけで次の作業へ進めます。</p>
+      <figure>
+        <img src="proposal-overview-screenshots/02-case-list.png" alt="案件一覧" loading="lazy" />
+        <figcaption><b>案件一覧</b>登録した案件が表で見える。工事名をクリックして詳細へ</figcaption>
+      </figure>
+      <figure>
+        <img src="proposal-overview-screenshots/03-case-detail.png" alt="案件詳細" loading="lazy" />
+        <figcaption><b>案件詳細</b>左＝6ステップの進捗、右＝タブ（基本情報〜履歴）</figcaption>
+      </figure>
+      <div class="shots">
+        <figure>
+          <img src="proposal-overview-screenshots/04-checklist.png" alt="チェックリスト" loading="lazy" />
+          <figcaption><b>チェックリスト</b>入札図書 PDF・提案の軸を確定</figcaption>
+        </figure>
+        <figure>
+          <img src="proposal-overview-screenshots/05-draft.png" alt="文案" loading="lazy" />
+          <figcaption><b>文案・Word</b>AI が4欄の下書きを生成し Word を DL</figcaption>
+        </figure>
+        <figure>
+          <img src="proposal-overview-screenshots/06-compliance.png" alt="記載ルール" loading="lazy" />
+          <figcaption><b>記載ルール</b>発注者要領に沿った9ルールを自動判定</figcaption>
+        </figure>
+        <figure>
+          <img src="proposal-overview-screenshots/07-approval.png" alt="承認" loading="lazy" />
+          <figcaption><b>承認</b>部長→支社長の2段階承認後、提出 PDF を出力</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 工夫・今後 -->
+    <section>
+      <div class="cols-2">
+        <div class="panel ingenuity" style="margin:0">
+          <h3>設計で意識したこと</h3>
+          <ul>
+            <li>1案件を順に進める作業向けに2ペイン UI</li>
+            <li>「確定して初稿生成へ」など次の作業へ1ボタン</li>
+            <li>データは DB・ファイル・コードで役割分担</li>
+            <li>担当者は自分の案件だけ編集（権限制御）</li>
+            <li>操作ログで「誰がいつ何をしたか」を残す</li>
+          </ul>
+        </div>
+        <div class="panel future" style="margin:0">
+          <h3>今後の拡張予定</h3>
+          <ul>
+            <li>留意事項テキスト欄・過去実績欄</li>
+            <li>Word を手元で直したあとの再取込</li>
+            <li>本番用 Supabase 環境の整備</li>
+            <li>関係者パイロットでのフィードバック反映</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div class="summary">
+      <strong>覚え方</strong> —
+      <span class="tag db">DB</span>＝案件の中身と履歴　
+      <span class="tag st">Storage</span>＝PDF・Word　
+      <span class="tag gh">GitHub</span>＝アプリの作り方
+    </div>
+
+    <p class="footer">
+      公開:
+      <a href="https://diagram-proposal-overview.surge.sh">diagram-proposal-overview.surge.sh</a>
+      ／ アプリ:
+      <a href="https://proposal-support.vercel.app/proposal/login">proposal-support.vercel.app</a>
+      ／ 保存場所の詳細図解:
+      <a href="proposal-storage-explainer.html">proposal-storage-explainer.html</a>
+    </p>
+  </div>
+</body>
+</html>
