@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { ProposalCase } from "@/lib/proposal/types";
 import { MAX_BID_PDF_BYTES, isPdfUpload } from "@/lib/proposal/bid-document-limits";
-import { isDbCase } from "@/lib/proposal/utils";
+import { hasBidMaterialSource, isDbCase } from "@/lib/proposal/utils";
 
 export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
   const router = useRouter();
@@ -24,6 +24,11 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
   const [axisInput, setAxisInput] = useState(
     () => caseItem.proposalAxisConfirmed ?? caseItem.proposalAxisDraft
   );
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [notesErrorMessage, setNotesErrorMessage] = useState<string | null>(null);
+  const [clientNotesInput, setClientNotesInput] = useState(
+    () => caseItem.clientNotesText
+  );
   const bidFileInputRef = useRef<HTMLInputElement>(null);
 
   const confirmed = caseItem.checklistConfirmed;
@@ -33,6 +38,8 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
     Boolean(caseItem.evaluationTheme) && !isAxisConfirmed;
   const draftHref = `/proposal/cases/${caseItem.id}?tab=draft`;
   const hasBidDocument = Boolean(caseItem.bidFilePath);
+  const hasBidSource =
+    hasBidMaterialSource(caseItem) || Boolean(clientNotesInput.trim());
   const bidInputId = `bid-upload-${caseItem.id}`;
   const uploadDisabled = confirmed || isUploadingBid || !isDbCase(caseItem.id);
 
@@ -100,6 +107,43 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
     }
   }
 
+  async function handleSaveClientNotes() {
+    setNotesErrorMessage(null);
+    setIsSavingNotes(true);
+
+    try {
+      if (!isDbCase(caseItem.id)) {
+        throw new Error("デモ案件では留意事項テキストを保存できません");
+      }
+
+      const response = await fetch(
+        `/api/proposal/cases/${caseItem.id}/save-client-notes`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clientNotesText: clientNotesInput }),
+        }
+      );
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(body?.error ?? "留意事項テキストの保存に失敗しました");
+      }
+
+      router.refresh();
+    } catch (error) {
+      setNotesErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "留意事項テキストの保存に失敗しました"
+      );
+    } finally {
+      setIsSavingNotes(false);
+    }
+  }
+
   async function handleConfirmAxis() {
     setAxisErrorMessage(null);
     setIsConfirmingAxis(true);
@@ -107,6 +151,26 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
     try {
       if (!isDbCase(caseItem.id)) {
         throw new Error("デモ案件では提案の軸を確定できません");
+      }
+
+      if (clientNotesInput !== caseItem.clientNotesText) {
+        const saveResponse = await fetch(
+          `/api/proposal/cases/${caseItem.id}/save-client-notes`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ clientNotesText: clientNotesInput }),
+          }
+        );
+
+        if (!saveResponse.ok) {
+          const body = (await saveResponse.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          throw new Error(
+            body?.error ?? "留意事項テキストの保存に失敗しました"
+          );
+        }
       }
 
       const response = await fetch(
@@ -203,9 +267,9 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
                     placeholder="入札図書を確認したうえで、提案の軸を入力または修正してください"
                   />
                 </div>
-                {!hasBidDocument && (
+                {!hasBidSource && (
                   <p className="text-xs text-amber-700">
-                    入札図書 PDF をアップロードしてから確定できます。
+                    入札図書 PDF をアップロードするか、留意事項テキストを入力してから確定できます。
                   </p>
                 )}
                 {axisErrorMessage && (
@@ -221,7 +285,7 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
                 disabled={
                   isConfirmingAxis ||
                   !isDbCase(caseItem.id) ||
-                  !hasBidDocument ||
+                  !hasBidSource ||
                   !axisInput.trim()
                 }
               >
@@ -286,7 +350,63 @@ export function ChecklistTab({ caseItem }: { caseItem: ProposalCase }) {
             </p>
           )}
         </CardContent>
-        <CardFooter className="flex-col items-stretch gap-3 border-t sm:flex-row sm:items-center sm:justify-between">
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>発注者明示の留意事項（テキスト）</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <p className="text-sm text-muted-foreground">
+            入札図書 PDF の代替として入力できます。PDF と併用も可能です。
+          </p>
+          {confirmed ? (
+            <p className="whitespace-pre-wrap text-sm">
+              {caseItem.clientNotesText.trim() || "（未入力）"}
+            </p>
+          ) : (
+            <>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor={`client-notes-${caseItem.id}`}>
+                  留意事項テキスト
+                </Label>
+                <Textarea
+                  id={`client-notes-${caseItem.id}`}
+                  rows={5}
+                  value={clientNotesInput}
+                  disabled={!isDbCase(caseItem.id)}
+                  onChange={(event) => setClientNotesInput(event.target.value)}
+                  placeholder="例: ① 軟弱地盤の分布把握 ② 湧水への対応 ③ 成果品の提出期限"
+                />
+              </div>
+              {notesErrorMessage && (
+                <p className="text-sm text-red-600">{notesErrorMessage}</p>
+              )}
+            </>
+          )}
+        </CardContent>
+        {!confirmed && (
+          <CardFooter className="justify-end border-t">
+            <Button
+              variant="outline"
+              onClick={() => void handleSaveClientNotes()}
+              disabled={
+                isSavingNotes ||
+                !isDbCase(caseItem.id) ||
+                clientNotesInput === caseItem.clientNotesText
+              }
+            >
+              {isSavingNotes ? "保存中..." : "留意事項を保存"}
+            </Button>
+          </CardFooter>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>チェックリスト確定</CardTitle>
+        </CardHeader>
+        <CardFooter className="flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-1">
             <p className="text-sm text-muted-foreground">
               {confirmed

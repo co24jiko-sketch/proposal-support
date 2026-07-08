@@ -46,6 +46,9 @@ export interface ProposalCaseRow {
   pdf_file_path?: string | null;
   bid_document_name?: string | null;
   bid_file_path?: string | null;
+  past_performance_notes?: string | null;
+  related_work_notes?: string | null;
+  client_notes_text?: string | null;
   approval_request_reason?: string | null;
   return_reason?: string | null;
   manager_approved_at?: string | null;

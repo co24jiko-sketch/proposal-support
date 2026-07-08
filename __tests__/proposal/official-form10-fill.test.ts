@@ -49,6 +49,9 @@ function baseCase(): ProposalCase {
       generatedAt: "2026-07-02T00:00:00.000Z",
     },
     currentWordVersion: "v2",
+    pastPerformanceNotes: "",
+    relatedWorkNotes: "",
+    clientNotesText: "",
   };
 }
 

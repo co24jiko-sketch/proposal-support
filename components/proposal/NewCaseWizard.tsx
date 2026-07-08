@@ -29,6 +29,8 @@ type FormState = {
   surveyPlanOutline: string;
   evaluationTheme: string;
   proposalAxisDraft: string;
+  pastPerformanceNotes: string;
+  relatedWorkNotes: string;
 };
 
 const emptyForm: FormState = {
@@ -41,6 +43,8 @@ const emptyForm: FormState = {
   surveyPlanOutline: "",
   evaluationTheme: "",
   proposalAxisDraft: "",
+  pastPerformanceNotes: "",
+  relatedWorkNotes: "",
 };
 
 export function NewCaseWizard() {
@@ -105,7 +109,7 @@ export function NewCaseWizard() {
   }
 
   return (
-    <div className="mx-auto min-w-[1280px] max-w-3xl space-y-6 p-6">
+    <div className="mx-auto flex min-w-[1280px] max-w-3xl flex-col gap-6 p-6">
       <div>
         <h1 className="text-2xl font-semibold">新規案件</h1>
         <p className="text-sm text-muted-foreground">
@@ -241,16 +245,40 @@ export function NewCaseWizard() {
           <CardHeader>
             <CardTitle>任意資料</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="pastPerformance">過去実績（任意）</Label>
+              <Textarea
+                id="pastPerformance"
+                rows={3}
+                placeholder="例: ○○地区地質調査（2024年・テクリスNo.12345）— 軟弱地盤の精査に実績"
+                value={form.pastPerformanceNotes}
+                onChange={(e) => updateField("pastPerformanceNotes", e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                効果欄の根拠・実績引用用。事実のみ入力してください。
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="relatedWork">関連業務メモ（任意）</Label>
+              <Textarea
+                id="relatedWork"
+                rows={3}
+                placeholder="例: 設計業務との連携、先行調査との整合"
+                value={form.relatedWorkNotes}
+                onChange={(e) => updateField("relatedWorkNotes", e.target.value)}
+              />
+            </div>
             <div className="flex flex-col gap-2">
               <Label>入札図書 PDF（推奨）</Label>
               <p className="text-sm text-muted-foreground">
-                案件作成後、チェックリストタブの「PDFをアップロード」から登録できます（この画面では不要です）。
+                案件作成後、チェックリストタブの「PDFをアップロード」から登録できます。PDF
+                が無い場合は同タブの留意事項テキスト欄が使えます。
               </p>
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label>参考事例（ライブラリから選択）</Label>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 {mockLibraryItems.map((item) => (
                   <button
                     key={item.id}

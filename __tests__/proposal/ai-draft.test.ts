@@ -47,6 +47,9 @@ function baseCase(overrides: Partial<ProposalCase> = {}): ProposalCase {
       detail: false,
       effects: false,
     },
+    pastPerformanceNotes: "",
+    relatedWorkNotes: "",
+    clientNotesText: "",
     ...overrides,
   };
 }

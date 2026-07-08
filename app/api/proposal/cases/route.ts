@@ -44,6 +44,12 @@ export async function POST(request: Request) {
       evaluationTheme: getEvaluationThemeLabel(themeId) ?? "",
       proposalAxisDraft:
         typeof body.proposalAxisDraft === "string" ? body.proposalAxisDraft.trim() : "",
+      pastPerformanceNotes:
+        typeof body.pastPerformanceNotes === "string"
+          ? body.pastPerformanceNotes.trim()
+          : "",
+      relatedWorkNotes:
+        typeof body.relatedWorkNotes === "string" ? body.relatedWorkNotes.trim() : "",
     });
     return NextResponse.json(created, { status: 201 });
   } catch (error) {

@@ -36,6 +36,7 @@ import { extractChecklistItemsFromPdf } from "@/lib/proposal/extract-checklist";
 import { rowToProposalCase } from "@/lib/proposal/map-case-row";
 import { SAMPLE_CHECKLIST_ITEMS } from "@/lib/proposal/sample-checklist";
 import type { ChecklistItem, ProposalCase } from "@/lib/proposal/types";
+import { hasBidMaterialSource } from "@/lib/proposal/utils";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ProposalCaseRow } from "@/lib/supabase/types";
 
@@ -49,6 +50,8 @@ export type CreateProposalCaseInput = {
   surveyPlanOutline: string;
   evaluationTheme: string;
   proposalAxisDraft: string;
+  pastPerformanceNotes?: string;
+  relatedWorkNotes?: string;
 };
 
 function assertCanManageCase(auth: AuthContext, caseItem: ProposalCase): void {
@@ -148,6 +151,8 @@ export async function createProposalCase(
       survey_plan_outline: input.surveyPlanOutline,
       evaluation_theme: input.evaluationTheme,
       proposal_axis_draft: input.proposalAxisDraft,
+      past_performance_notes: input.pastPerformanceNotes?.trim() ?? "",
+      related_work_notes: input.relatedWorkNotes?.trim() ?? "",
       assignee_id: auth.userId,
       assignee_name: auth.profile.displayName,
       status: "checklist_pending",
@@ -228,8 +233,10 @@ export async function confirmProposalAxis(
     return existing;
   }
 
-  if (!existing.bidFilePath) {
-    throw new Error("入札図書 PDF をアップロードしてから提案の軸を確定してください");
+  if (!hasBidMaterialSource(existing)) {
+    throw new Error(
+      "入札図書 PDF をアップロードするか、留意事項テキストを入力してから提案の軸を確定してください"
+    );
   }
 
   const axis = confirmedAxis.trim() || existing.proposalAxisDraft.trim();
@@ -253,6 +260,43 @@ export async function confirmProposalAxis(
   }
 
   await recordAuditLog(id, auth, "提案の軸を確定", axis);
+
+  return rowToProposalCase(data as ProposalCaseRow);
+}
+
+export async function saveClientNotesText(
+  auth: AuthContext,
+  id: string,
+  clientNotesText: string
+): Promise<ProposalCase> {
+  const existing = await getProposalCaseById(id);
+
+  if (!existing) {
+    throw new Error("案件が見つかりません");
+  }
+
+  assertCanManageCase(auth, existing);
+
+  if (existing.checklistConfirmed) {
+    throw new Error("チェックリスト確定済みのため留意事項テキストは変更できません");
+  }
+
+  const trimmed = clientNotesText.trim();
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("proposal_cases")
+    .update({ client_notes_text: trimmed })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(`留意事項テキストの保存に失敗しました: ${error.message}`);
+  }
+
+  if (trimmed) {
+    await recordAuditLog(id, auth, "留意事項テキストを保存");
+  }
 
   return rowToProposalCase(data as ProposalCaseRow);
 }
@@ -487,6 +531,8 @@ export async function generateDraft(
     const { data } = await downloadProposalFile(existing.bidFilePath);
     const buffer = Buffer.from(await data.arrayBuffer());
     bidDocumentText = await extractBidDocumentText(buffer);
+  } else if (existing.clientNotesText.trim()) {
+    bidDocumentText = existing.clientNotesText.trim();
   }
 
   const draftSections = await generateAiDraftSections(

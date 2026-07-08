@@ -148,6 +148,9 @@ export const mockCases: ProposalCase[] = [
     ],
     referencedLibraryIds: ["lib-1"],
     bidDocumentName: "入札図書_kyoushi.pdf",
+    pastPerformanceNotes: "",
+    relatedWorkNotes: "",
+    clientNotesText: "",
     currentWordVersion: "v3",
     generatedSections: {
       summary: true,
@@ -209,6 +212,9 @@ export const mockCases: ProposalCase[] = [
     ],
     referencedLibraryIds: [],
     bidDocumentName: "入札図書_tunnel.pdf",
+    pastPerformanceNotes: "",
+    relatedWorkNotes: "",
+    clientNotesText: "",
     currentWordVersion: "v2",
     generatedSections: {
       summary: true,
@@ -252,6 +258,9 @@ export const mockCases: ProposalCase[] = [
     versions: [],
     auditLog: [],
     referencedLibraryIds: [],
+    pastPerformanceNotes: "",
+    relatedWorkNotes: "",
+    clientNotesText: "",
     generatedSections: {
       summary: true,
       focusPoints: true,

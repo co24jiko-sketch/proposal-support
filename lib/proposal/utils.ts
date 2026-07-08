@@ -11,6 +11,13 @@ export function isDbCase(id: string): boolean {
   return !id.startsWith("case-");
 }
 
+/** 入札図書 PDF または留意事項テキストのいずれかがある */
+export function hasBidMaterialSource(caseItem: ProposalCase): boolean {
+  return Boolean(
+    caseItem.bidFilePath?.trim() || caseItem.clientNotesText?.trim()
+  );
+}
+
 export const WORKFLOW_STEPS: WorkflowStepId[] = [
   "basic_input",
   "checklist",

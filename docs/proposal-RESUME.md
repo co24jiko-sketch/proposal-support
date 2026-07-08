@@ -272,7 +272,7 @@ where assignee_id is null;
 1. ~~**未 push 分のコミット**~~ — 図解 HTML・キャプチャ・`capture-proposal-screenshots.mjs`・`package.json`・ドキュメント整合（2026-07-08 完了）
 2. ~~**ドキュメント整合**~~ — `proposal-pilot-guide.md` / `proposal-ai-inputs.md` を現行 UI に合わせて更新（2026-07-08 完了）
 3. **関係者パイロット** — 日程が決まったら `docs/proposal-pilot-guide.md` に沿って実施
-4. **Step 8〜9（未着手）** — 過去実績・関連業務メモ欄、留意事項テキスト欄（`docs/proposal-ai-inputs.md` 参照）
+4. ~~**Step 8〜9（未着手）**~~ — 過去実績・関連業務メモ・留意事項テキスト欄（2026-07-08 実装。要 SQL 実行）
 5. **任意** — Word 手修正再取込、本番 Supabase 環境、記載ルール拡張（留意事項との対応表示）
 
 ### Phase 3 実装サマリ（2026-06-20 完了）

@@ -148,5 +148,8 @@ export function rowToProposalCase(
     bidFilePath: row.bid_file_path ?? undefined,
     generatedSections: parseGeneratedSections(row.generated_sections),
     draftSections: parseDraftSections(row.draft_sections),
+    pastPerformanceNotes: row.past_performance_notes ?? "",
+    relatedWorkNotes: row.related_work_notes ?? "",
+    clientNotesText: row.client_notes_text ?? "",
   };
 }

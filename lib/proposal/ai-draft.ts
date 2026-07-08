@@ -109,6 +109,14 @@ export function buildDraftGenerationPrompt(
     `既知の地質情報: ${basicInput.siteKnownInfo || "（未入力）"}`,
     `調査計画の骨子: ${basicInput.surveyPlanOutline || "（未入力）"}`,
     "",
+    "## 過去実績・関連業務（任意・事実のみ）",
+    caseItem.pastPerformanceNotes?.trim()
+      ? caseItem.pastPerformanceNotes.trim()
+      : "（未入力 — 効果欄は定性的効果または手法の妥当性で記載）",
+    caseItem.relatedWorkNotes?.trim()
+      ? `関連業務メモ:\n${caseItem.relatedWorkNotes.trim()}`
+      : "",
+    "",
     "## 採点項目（評価観点の参考）",
     formatChecklistForPrompt(caseItem),
     "",

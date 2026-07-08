@@ -129,6 +129,12 @@ export interface ProposalCase {
   };
   /** AI 生成文案。未生成時は null / undefined */
   draftSections?: DraftSectionsContent | null;
+  /** 過去実績（効果欄の根拠引用用・任意） */
+  pastPerformanceNotes: string;
+  /** 関連業務メモ（任意） */
+  relatedWorkNotes: string;
+  /** 発注者明示の留意事項テキスト（PDF の代替可） */
+  clientNotesText: string;
 }
 
 export interface LibraryItem {

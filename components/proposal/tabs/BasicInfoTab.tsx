@@ -41,6 +41,15 @@ export function BasicInfoTab({ caseItem }: { caseItem: ProposalCase }) {
 
     ["調査計画骨子", caseItem.basicInput.surveyPlanOutline],
 
+    ["過去実績", caseItem.pastPerformanceNotes || "（未入力）"],
+
+    ["関連業務メモ", caseItem.relatedWorkNotes || "（未入力）"],
+
+    [
+      "留意事項テキスト",
+      caseItem.clientNotesText.trim() || "（未入力 — チェックリストタブ）",
+    ],
+
   ] as const;
 
 

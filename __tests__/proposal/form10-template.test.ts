@@ -50,6 +50,9 @@ function baseCase(overrides: Partial<ProposalCase> = {}): ProposalCase {
       generatedAt: "2026-07-02T00:00:00.000Z",
     },
     currentWordVersion: "v2",
+    pastPerformanceNotes: "",
+    relatedWorkNotes: "",
+    clientNotesText: "",
     ...overrides,
   };
 }

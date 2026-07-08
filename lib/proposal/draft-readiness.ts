@@ -1,4 +1,5 @@
 import type { ProposalCase } from "@/lib/proposal/types";
+import { hasBidMaterialSource } from "@/lib/proposal/utils";
 
 export type DraftReadinessLevel = "required" | "recommended";
 
@@ -90,11 +91,11 @@ export function getDraftReadiness(
       ok: hasBasicInfo(caseItem),
     },
     {
-      id: "bid-document",
-      label: "入札図書 PDF がアップロードされている",
+      id: "bid-material",
+      label: "入札図書 PDF または留意事項テキストがある",
       level: "required",
-      ok: Boolean(caseItem.bidFilePath),
-      hint: "留意事項テキスト欄は今後追加予定です",
+      ok: hasBidMaterialSource(caseItem),
+      hint: "チェックリストタブで PDF をアップロードするか、留意事項テキストを入力してください",
     },
     {
       id: "proposal-axis",
@@ -109,6 +110,13 @@ export function getDraftReadiness(
       level: "recommended",
       ok: hasSiteContext(caseItem),
       hint: "空のままでも生成できますが、文案の具体性が弱くなります",
+    },
+    {
+      id: "past-performance",
+      label: "過去実績を入力している（効果欄の根拠用）",
+      level: "recommended",
+      ok: Boolean(caseItem.pastPerformanceNotes.trim()),
+      hint: "任意です。効果欄に実績引用を含めたい場合に入力してください",
     },
   ];
 

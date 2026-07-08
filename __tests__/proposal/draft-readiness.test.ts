@@ -41,6 +41,9 @@ function baseCase(overrides: Partial<ProposalCase> = {}): ProposalCase {
       detail: false,
       effects: false,
     },
+    pastPerformanceNotes: "",
+    relatedWorkNotes: "",
+    clientNotesText: "",
     ...overrides,
   };
 }
@@ -78,5 +81,17 @@ describe("getDraftReadiness", () => {
     );
     expect(readiness.canGenerate).toBe(true);
     expect(readiness.hasRecommendedGaps).toBe(true);
+  });
+
+  it("留意事項テキストのみでも入札材料必須を満たす", () => {
+    const readiness = getDraftReadiness(
+      baseCase({
+        bidFilePath: undefined,
+        bidDocumentName: undefined,
+        clientNotesText: "軟弱地盤の分布把握が評価の重点",
+      }),
+      false
+    );
+    expect(readiness.canGenerate).toBe(true);
   });
 });
